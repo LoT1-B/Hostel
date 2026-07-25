@@ -274,7 +274,7 @@ const API_BASE = (() => {
   // Mode développement local
   if (h === 'localhost' || h === '127.0.0.1' || h === '') return 'http://localhost:5000/api';
   // Mode production : GitHub Pages → Render
-  if (h.includes('github.io') || h.includes('lot1-b')) return 'https://villablanca-backend.onrender.com/api';
+  if (h.includes('github.io') || h.includes('lot1-b')) return 'https://hostel-2v4z.onrender.com/api';
   // Même domaine (Render front+back ensemble)
   return '/api';
 })();

@@ -22,7 +22,7 @@ def create_app():
             "http://localhost:5000",
             "http://127.0.0.1:5000",
             "https://lot1-b.github.io",
-            "https://villablanca-backend.onrender.com"
+            "https://hostel-2v4z.onrender.com"
         ]
     }})
     db.init_app(app)
