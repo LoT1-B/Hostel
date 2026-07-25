@@ -266,6 +266,64 @@ const PERIODS = [
   { n: 30, label: 'Mensuel', sub: '30 jours' },
 ];
 const STORAGE_KEY = 'villablanca:main';
+const TOKEN_KEY = 'villablanca:token';
+
+// ----- API HELPER -----
+const API_BASE = (() => {
+  const h = window.location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || h === '') return 'http://localhost:5000/api';
+  return '/api'; // même domaine en prod sur Render
+})();
+
+let _apiToken = localStorage.getItem(TOKEN_KEY);
+
+async function api(path, opts = {}) {
+  const headers = { ...opts.headers };
+  if (_apiToken) headers['Authorization'] = `Bearer ${_apiToken}`;
+  if (opts.body && !(opts.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const res = await fetch(API_BASE + path, { ...opts, headers });
+  if (res.status === 401) { localStorage.removeItem(TOKEN_KEY); _apiToken = null; }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ msg: 'Erreur API' }));
+    throw new Error(err.msg || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function loadAllFromApi() {
+  const [
+    rooms, reservations, stockBoisson, stockNourriture,
+    users, closedDays, settings
+  ] = await Promise.all([
+    api('/rooms').catch(() => []),
+    api('/reservations').catch(() => []),
+    api('/stock/boisson').catch(() => []),
+    api('/stock/nourriture').catch(() => []),
+    api('/users').catch(() => []),
+    api('/closed-days').catch(() => []),
+    api('/settings').catch(() => ({ hotelName: 'Villa Blanca', dayBoundary: 'midnight' })),
+  ]);
+  return {
+    settings,
+    currentDay: new Date().toISOString().slice(0, 10),
+    closedDays,
+    rooms, reservations, stockBoisson, stockNourriture,
+    movements: [],
+    users,
+  };
+}
+
+async function loginToApi(username, password) {
+  const data = await api('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+  _apiToken = data.token;
+  localStorage.setItem(TOKEN_KEY, data.token);
+  return data.user;
+}
 
 // ----- DATA HELPERS -----
 function stockStatus(item) {
@@ -494,16 +552,36 @@ function SplashScreen({ onEnter }) {
 }
 
 // ----- LOGIN SCREEN (PAGE DE CONNEXION) -----
-function LoginScreen({ users, onLogin, storageError, hotelName }) {
+function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isHovered, setIsHovered] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
+    setError('');
+
+    // Essayer API d'abord
+    if (onApiLogin) {
+      setLoggingIn(true);
+      try {
+        const user = await onApiLogin(username.trim(), password);
+        onLogin(user);
+        setLoggingIn(false);
+        return;
+      } catch (e) {
+        setLoggingIn(false);
+        // Fallback local si API indisponible
+        console.warn('API login failed, fallback local:', e.message);
+      }
+    }
+
+    // Fallback : auth locale (seed data)
     const found = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password);
-    if (found) { setError(''); onLogin(found); } else setError('Identifiant ou mot de passe incorrect.');
+    if (found) { setError(''); onLogin(found); }
+    else setError('Identifiant ou mot de passe incorrect.');
   };
 
   return (
@@ -806,6 +884,7 @@ function LoginScreen({ users, onLogin, storageError, hotelName }) {
             <I.KeyRound size={18} style={{ color: '#b8946e' }} /> 
             Se connecter
           </button>
+          {loggingIn && <div style={{ fontSize: '12px', color: COLORS.slate, textAlign: 'center' }}>Connexion à l'API…</div>}
         </form>
 
         <div style={{ 
@@ -1478,11 +1557,26 @@ function HotelManager() {
   const [view, setView] = useState('dashboard');
   const [toast, setToast] = useState(null);
   const [showSplash, setShowSplash] = useState(true);
+  const [apiMode, setApiMode] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
+        // Essayer API d'abord si on a un token
+        if (_apiToken) {
+          try {
+            const apiData = await loadAllFromApi();
+            if (!mounted) return;
+            setApiMode(true);
+            setData(apiData);
+            setLoading(false);
+            return;
+          } catch (e) {
+            console.warn('API chargement échoué, fallback local:', e.message);
+          }
+        }
+        // Fallback : localStorage ou seedData
         const result = await window.storage.get(STORAGE_KEY, true);
         if (!mounted) return;
         if (result && result.value) setData(JSON.parse(result.value));
@@ -1496,10 +1590,105 @@ function HotelManager() {
     return () => { mounted = false; };
   }, []);
 
+  const syncToApi = useCallback(async (next) => {
+    if (!apiMode) return;
+    const prev = data;
+    if (!prev || !next) return;
+
+    // Détecter et synchroniser les changements par entité
+    try {
+      // Chambres
+      if (next.rooms !== prev.rooms) {
+        const added = next.rooms.filter(r => !prev.rooms.find(p => p.id === r.id));
+        const removed = prev.rooms.filter(r => !next.rooms.find(p => p.id === r.id));
+        const updated = next.rooms.filter(r => prev.rooms.find(p => p.id === r.id && JSON.stringify(p) !== JSON.stringify(r)));
+
+        for (const r of removed) api(`/rooms/${r.id}`, { method: 'DELETE' }).catch(() => {});
+        for (const r of added) api('/rooms', { method: 'POST', body: JSON.stringify(r) }).catch(() => {});
+        for (const r of updated) api(`/rooms/${r.id}`, { method: 'PUT', body: JSON.stringify(r) }).catch(() => {});
+      }
+
+      // Réservations
+      if (next.reservations !== prev.reservations) {
+        const added = next.reservations.filter(r => !prev.reservations.find(p => p.id === r.id));
+        const removed = prev.reservations.filter(r => !next.reservations.find(p => p.id === r.id));
+        const updated = next.reservations.filter(r => prev.reservations.find(p => p.id === r.id && JSON.stringify(p) !== JSON.stringify(r)));
+        for (const r of removed) api(`/reservations/${r.id}`, { method: 'DELETE' }).catch(() => {});
+        for (const r of added) api('/reservations', { method: 'POST', body: JSON.stringify({ ...r, roomId: r.roomId || (prev.rooms.find(pr => pr.number === r.roomNumber) || {}).id }) }).catch(() => {});
+        for (const r of updated) api(`/reservations/${r.id}`, { method: 'PUT', body: JSON.stringify(r) }).catch(() => {});
+      }
+
+      // Stock
+      if (next.stockBoisson !== prev.stockBoisson) {
+        for (const item of next.stockBoisson) {
+          const p = prev.stockBoisson.find(s => s.id === item.id);
+          if (!p) api('/stock', { method: 'POST', body: JSON.stringify({ ...item, category: 'boisson' }) }).catch(() => {});
+          else if (JSON.stringify(p) !== JSON.stringify(item)) api(`/stock/${item.id}`, { method: 'PUT', body: JSON.stringify(item) }).catch(() => {});
+        }
+        for (const item of prev.stockBoisson) {
+          if (!next.stockBoisson.find(s => s.id === item.id)) api(`/stock/${item.id}`, { method: 'DELETE' }).catch(() => {});
+        }
+      }
+      if (next.stockNourriture !== prev.stockNourriture) {
+        for (const item of next.stockNourriture) {
+          const p = prev.stockNourriture.find(s => s.id === item.id);
+          if (!p) api('/stock', { method: 'POST', body: JSON.stringify({ ...item, category: 'nourriture' }) }).catch(() => {});
+          else if (JSON.stringify(p) !== JSON.stringify(item)) api(`/stock/${item.id}`, { method: 'PUT', body: JSON.stringify(item) }).catch(() => {});
+        }
+        for (const item of prev.stockNourriture) {
+          if (!next.stockNourriture.find(s => s.id === item.id)) api(`/stock/${item.id}`, { method: 'DELETE' }).catch(() => {});
+        }
+      }
+
+      // Mouvements
+      if (next.movements !== prev.movements && next.movements.length > prev.movements.length) {
+        const newMoves = next.movements.slice(prev.movements.length);
+        for (const m of newMoves) {
+          const item = [...next.stockBoisson, ...next.stockNourriture].find(s => s.id === m.itemId || s.name === m.itemName);
+          if (item) api(`/stock/${item.id}/movement`, { method: 'POST', body: JSON.stringify({ type: m.type, qty: m.qty, note: m.note || '' }) }).catch(() => {});
+        }
+      }
+
+      // Utilisateurs
+      if (next.users !== prev.users && next.users.length > prev.users.length) {
+        const added = next.users.filter(u => !prev.users.find(p => p.username === u.username));
+        for (const u of added) api('/users', { method: 'POST', body: JSON.stringify(u) }).catch(() => {});
+      }
+
+      // Closed days
+      if (next.closedDays !== prev.closedDays && next.closedDays.length > prev.closedDays.length) {
+        api('/closed-days', { method: 'POST' }).catch(() => {});
+      }
+
+      // Settings
+      if (next.settings !== prev.settings) {
+        api('/settings', { method: 'PUT', body: JSON.stringify(next.settings) }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('API sync error:', e);
+    }
+  }, [data, apiMode]);
+
   const persist = useCallback(async (next) => {
     setData(next);
     try { await window.storage.set(STORAGE_KEY, JSON.stringify(next), true); }
     catch (e) { setStorageError(true); }
+    // Sync API en arrière-plan
+    syncToApi(next);
+  }, [syncToApi]);
+
+  const handleApiLogin = useCallback(async (username, password) => {
+    const user = await loginToApi(username, password);
+    // Recharger les données depuis l'API après connexion
+    try {
+      const apiData = await loadAllFromApi();
+      setData(apiData);
+      await window.storage.set(STORAGE_KEY, JSON.stringify(apiData), true).catch(() => {});
+      setApiMode(true);
+    } catch (e) {
+      console.warn('API data load après login échoué:', e);
+    }
+    return user;
   }, []);
 
   const showToast = (msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 2600); };
@@ -1522,7 +1711,7 @@ function HotelManager() {
 
   // PAGE DE CONNEXION
   if (!currentUser) {
-    return <LoginScreen users={data.users} onLogin={setCurrentUser} storageError={storageError} hotelName={hotelName} />;
+    return <LoginScreen users={data.users} onLogin={setCurrentUser} storageError={storageError} hotelName={hotelName} onApiLogin={handleApiLogin} />;
   }
 
   // APPLICATION PRINCIPALE
