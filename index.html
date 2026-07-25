@@ -18,16 +18,13 @@ body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;text-rend
 input,select,button,textarea{font:inherit}
 input:focus,select:focus{outline:2px solid #C08A3E;outline-offset:2px;border-color:#C08A3E!important}
 ::selection{background:#C08A3E;color:#16242B}
-/* Scrollbar */
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#DED3BC;border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:#C08A3E}
-/* Animations */
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
-@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
 .anim-in{animation:fadeIn 0.35s ease-out both}
 .anim-slide{animation:slideUp 0.4s ease-out both}
 .anim-stagger>*{animation:fadeIn 0.3s ease-out both}
@@ -35,319 +32,310 @@ input:focus,select:focus{outline:2px solid #C08A3E;outline-offset:2px;border-col
 .anim-stagger>*:nth-child(2){animation-delay:0.06s}
 .anim-stagger>*:nth-child(3){animation-delay:0.09s}
 .anim-stagger>*:nth-child(4){animation-delay:0.12s}
-.anim-stagger>*:nth-child(5){animation-delay:0.15s}
-.anim-stagger>*:nth-child(6){animation-delay:0.18s}
-.anim-stagger>*:nth-child(7){animation-delay:0.21s}
-.anim-stagger>*:nth-child(8){animation-delay:0.24s}
-/* Hover lift */
 .hover-lift{transition:transform 0.2s ease,box-shadow 0.2s ease}
 .hover-lift:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(22,36,43,0.10)}
-/* Card base */
 .card{background:white;border-radius:14px;border:1px solid #DED3BC;transition:border-color 0.2s,box-shadow 0.2s}
 .card:hover{border-color:#E4C48C;box-shadow:0 4px 20px rgba(22,36,43,0.06)}
-/* Glass effect */
-.glass{background:rgba(247,242,233,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-/* Button base */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:10px;font-size:14px;font-weight:500;border:none;cursor:pointer;transition:all 0.2s ease}
 .btn-primary{background:#16242B;color:#F7F2E9}
 .btn-primary:hover{background:#22333B;transform:translateY(-1px);box-shadow:0 4px 12px rgba(22,36,43,0.2)}
-.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
 .btn-ghost{background:transparent;color:#5B6B70}
 .btn-ghost:hover{background:rgba(22,36,43,0.06);color:#16242B}
 .btn-danger{background:#A6483B;color:white}
 .btn-danger:hover{background:#8a3d32;transform:translateY(-1px)}
 .btn-success{background:#2F6F63;color:white}
 .btn-success:hover{background:#265b51;transform:translateY(-1px)}
-/* Input */
 .input{border:1.5px solid #DED3BC;border-radius:10px;padding:10px 14px;background:white;transition:all 0.2s;width:100%;font-size:14px}
 .input:focus{border-color:#C08A3E;box-shadow:0 0 0 3px rgba(192,138,62,0.12)}
-/* Tag */
 .tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;letter-spacing:0.01em}
-/* Grid rooms */
 .room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:10px}
 .room-tile{border-radius:12px;padding:12px 8px;text-align:center;border:1.5px solid;cursor:default;transition:all 0.2s}
 .room-tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(22,36,43,0.08)}
-/* Stats grid */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.subtab{padding:8px 16px;border-radius:9px;font-size:13px;font-weight:600;border:1.5px solid #DED3BC;background:white;cursor:pointer;transition:all 0.15s}
+.subtab.active{background:#16242B;color:#F7F2E9;border-color:#16242B}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
 const TOKENS = {
-  ink: "#16242B",
-  inkSoft: "#22333B",
-  paper: "#F7F2E9",
-  paperDim: "#EFE7D6",
-  brass: "#C08A3E",
-  brassSoft: "#E4C48C",
-  teal: "#2F6F63",
-  brick: "#A6483B",
-  slate: "#5B6B70",
-  line: "#DED3BC",
+  ink: "#16242B", inkSoft: "#22333B", paper: "#F7F2E9", paperDim: "#EFE7D6",
+  brass: "#C08A3E", brassSoft: "#E4C48C", teal: "#2F6F63", brick: "#A6483B",
+  amber: "#B8863B", slate: "#5B6B70", line: "#DED3BC",
 };
 
 const Icon = ({ icon, size = 16, style }) =>
   React.createElement("span", {
-    dangerouslySetInnerHTML: { __html: icon.toSvg ? icon.toSvg(size) : "" },
+    dangerouslySetInnerHTML: { __html: icon && icon.toSvg ? icon.toSvg(size) : "" },
     style: { display: "inline-flex", verticalAlign: "middle", ...style },
   });
 
 const I = {
-  BedDouble:       (s, st) => <Icon icon={lucide.BedDouble} size={s||16} style={st} />,
-  CalendarCheck:   (s, st) => <Icon icon={lucide.CalendarCheck} size={s||16} style={st} />,
-  Package:         (s, st) => <Icon icon={lucide.Package} size={s||16} style={st} />,
-  Users:           (s, st) => <Icon icon={lucide.Users} size={s||16} style={st} />,
-  LayoutGrid:      (s, st) => <Icon icon={lucide.LayoutGrid} size={s||16} style={st} />,
-  LogOut:          (s, st) => <Icon icon={lucide.LogOut} size={s||16} style={st} />,
-  Plus:            (s, st) => <Icon icon={lucide.Plus} size={s||16} style={st} />,
-  Trash2:          (s, st) => <Icon icon={lucide.Trash2} size={s||16} style={st} />,
-  Pencil:          (s, st) => <Icon icon={lucide.Pencil} size={s||16} style={st} />,
-  X:               (s, st) => <Icon icon={lucide.X} size={s||16} style={st} />,
-  KeyRound:        (s, st) => <Icon icon={lucide.KeyRound} size={s||16} style={st} />,
-  AlertTriangle:   (s, st) => <Icon icon={lucide.AlertTriangle} size={s||16} style={st} />,
-  CheckCircle2:    (s, st) => <Icon icon={lucide.CheckCircle2} size={s||16} style={st} />,
-  DoorOpen:        (s, st) => <Icon icon={lucide.DoorOpen} size={s||16} style={st} />,
-  DoorClosed:      (s, st) => <Icon icon={lucide.DoorClosed} size={s||16} style={st} />,
-  Search:          (s, st) => <Icon icon={lucide.Search} size={s||16} style={st} />,
-  TrendingUp:      (s, st) => <Icon icon={lucide.TrendingUp} size={s||16} style={st} />,
-  Hotel:           (s, st) => <Icon icon={lucide.Hotel} size={s||16} style={st} />,
+  BedDouble:(s,st)=><Icon icon={lucide.BedDouble} size={s||16} style={st}/>,
+  CalendarCheck:(s,st)=><Icon icon={lucide.CalendarCheck} size={s||16} style={st}/>,
+  Package:(s,st)=><Icon icon={lucide.Package} size={s||16} style={st}/>,
+  Users:(s,st)=><Icon icon={lucide.Users} size={s||16} style={st}/>,
+  LayoutGrid:(s,st)=><Icon icon={lucide.LayoutGrid} size={s||16} style={st}/>,
+  LogOut:(s,st)=><Icon icon={lucide.LogOut} size={s||16} style={st}/>,
+  Plus:(s,st)=><Icon icon={lucide.Plus} size={s||16} style={st}/>,
+  Trash2:(s,st)=><Icon icon={lucide.Trash2} size={s||16} style={st}/>,
+  Pencil:(s,st)=><Icon icon={lucide.Pencil} size={s||16} style={st}/>,
+  X:(s,st)=><Icon icon={lucide.X} size={s||16} style={st}/>,
+  KeyRound:(s,st)=><Icon icon={lucide.KeyRound} size={s||16} style={st}/>,
+  AlertTriangle:(s,st)=><Icon icon={lucide.AlertTriangle} size={s||16} style={st}/>,
+  CheckCircle2:(s,st)=><Icon icon={lucide.CheckCircle2} size={s||16} style={st}/>,
+  DoorOpen:(s,st)=><Icon icon={lucide.DoorOpen} size={s||16} style={st}/>,
+  DoorClosed:(s,st)=><Icon icon={lucide.DoorClosed} size={s||16} style={st}/>,
+  TrendingUp:(s,st)=><Icon icon={lucide.TrendingUp} size={s||16} style={st}/>,
+  Hotel:(s,st)=><Icon icon={lucide.Hotel} size={s||16} style={st}/>,
+  Wine:(s,st)=><Icon icon={lucide.Wine} size={s||16} style={st}/>,
+  Utensils:(s,st)=><Icon icon={lucide.UtensilsCrossed} size={s||16} style={st}/>,
+  ArrowDown:(s,st)=><Icon icon={lucide.ArrowDownCircle} size={s||16} style={st}/>,
+  ArrowUp:(s,st)=><Icon icon={lucide.ArrowUpCircle} size={s||16} style={st}/>,
+  Settings:(s,st)=><Icon icon={lucide.Settings} size={s||16} style={st}/>,
+  ClipboardList:(s,st)=><Icon icon={lucide.ClipboardList} size={s||16} style={st}/>,
+  History:(s,st)=><Icon icon={lucide.History} size={s||16} style={st}/>,
+  Moon:(s,st)=><Icon icon={lucide.Moon} size={s||16} style={st}/>,
+  Sun:(s,st)=><Icon icon={lucide.Sun} size={s||16} style={st}/>,
+  Lock:(s,st)=><Icon icon={lucide.Lock} size={s||16} style={st}/>,
+  Ban:(s,st)=><Icon icon={lucide.Ban} size={s||16} style={st}/>,
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const todayStr = () => new Date().toISOString().slice(0, 10);
-const formatCurrency = (n) => n.toLocaleString() + " FCFA";
+const formatCurrency = (n) => Number(n||0).toLocaleString() + " FCFA";
 const formatDate = (d) => new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
+const formatDateLong = (d) => new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+const addDays = (day, n) => { const d = new Date(day+"T00:00:00"); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
 
-const ROLE_LABEL = { admin:"Administrateur", reception:"Réception", stock:"Gestion stock" };
+function isPastBoundary(currentDay, boundary) {
+  const next = new Date(currentDay + "T00:00:00");
+  next.setDate(next.getDate() + 1);
+  if (boundary === "noon") next.setHours(12,0,0,0);
+  return new Date() >= next;
+}
+
+const ROLE_LABEL = { manager:"Manager", reception:"Réceptionniste" };
 const ROOM_STATUS = {
-  available: { label:"Disponible", color:TOKENS.teal, icon:"checkmark" },
-  occupied: { label:"Occupée", color:TOKENS.brick, icon:"x" },
-  maintenance: { label:"Maintenance", color:TOKENS.slate, icon:"wrench" },
+  available: { label:"Disponible", color:TOKENS.teal },
+  occupied: { label:"Occupée", color:TOKENS.brick },
+  maintenance: { label:"Maintenance", color:TOKENS.slate },
 };
-const STORAGE_KEY = "villablanca";
+const STOCK_CATS = {
+  boisson: { label:"Boissons", icon:I.Wine },
+  nourriture: { label:"Nourriture", icon:I.Utensils },
+};
+const PERIODS = [
+  { n:7, label:"Hebdomadaire", sub:"7 jours" },
+  { n:10, label:"Décade", sub:"10 jours" },
+  { n:15, label:"Quinzaine", sub:"15 jours" },
+  { n:30, label:"Mensuel", sub:"30 jours" },
+];
 
-function seedData() {
+const STORAGE_KEY = "villablanca:main";
+
+function stockStatus(item) {
+  if (item.qty <= 0) return { label:"Rupture", color:TOKENS.brick, level:2 };
+  if (item.qty <= item.threshold) return { label:"Stock bas", color:TOKENS.amber, level:1 };
+  return { label:"OK", color:TOKENS.teal, level:0 };
+}
+
+function daySnapshot(data, day) {
+  const rooms = data.rooms;
+  const occupied = rooms.filter(r => r.status === "occupied").length;
+  const revenue = rooms.filter(r => r.status === "occupied").reduce((s,r) => s + Number(r.price||0), 0);
+  const arrivals = data.reservations.filter(r => r.checkin === day).length;
+  const departures = data.reservations.filter(r => r.checkout === day).length;
+  const moves = data.movements.filter(m => m.day === day);
+  const sumMove = (cat, type) => moves.filter(m => m.category===cat && m.type===type).reduce((s,m)=>s+Number(m.qty||0),0);
+  const lowStockCount = [...data.stockBoisson, ...data.stockNourriture].filter(s => stockStatus(s).level > 0).length;
   return {
-    rooms: [
-      { id:uid(), number:"101", type:"Simple", price:15000, status:"available" },
-      { id:uid(), number:"102", type:"Simple", price:15000, status:"occupied" },
-      { id:uid(), number:"201", type:"Suite", price:35000, status:"available" },
-      { id:uid(), number:"202", type:"Suite", price:35000, status:"available" },
-      { id:uid(), number:"301", type:"Deluxe", price:50000, status:"maintenance" },
-    ],
-    reservations: [{
-      id:uid(), guest:"K. Amouzou", roomNumber:"102",
-      checkin:todayStr(), checkout:todayStr(), status:"checked-in", notes:"",
-    }],
-    stock: [
-      { id:uid(), name:"Serviettes", qty:40, unit:"pcs", threshold:10 },
-      { id:uid(), name:"Savon", qty:12, unit:"pcs", threshold:15 },
-      { id:uid(), name:"Eau minérale", qty:60, unit:"bouteilles", threshold:20 },
-      { id:uid(), name:"Draps", qty:25, unit:"pcs", threshold:10 },
-    ],
-    users: [
-      { username:"admin", password:"admin123", role:"admin", name:"Administrateur" },
-      { username:"reception", password:"reception123", role:"reception", name:"Agent Réception" },
-    ],
+    day,
+    roomsTotal: rooms.length,
+    occupied,
+    occupancyRate: rooms.length ? Math.round((occupied/rooms.length)*100) : 0,
+    revenue,
+    arrivals,
+    departures,
+    boissonEntrees: sumMove("boisson","entree"),
+    boissonSorties: sumMove("boisson","sortie"),
+    nourritureEntrees: sumMove("nourriture","entree"),
+    nourritureSorties: sumMove("nourriture","sortie"),
+    lowStockCount,
   };
 }
 
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) { const p = JSON.parse(raw); if (p?.rooms && p?.users) return p; }
-  } catch(e) {}
-  const s = seedData();
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch(e) {}
-  return s;
-}
-function saveData(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+function seedData() {
+  const today = todayStr();
+  const rooms = [
+    { id:uid(), number:"101", type:"Simple", price:15000, status:"available" },
+    { id:uid(), number:"102", type:"Simple", price:15000, status:"occupied" },
+    { id:uid(), number:"201", type:"Suite", price:35000, status:"available" },
+    { id:uid(), number:"202", type:"Suite", price:35000, status:"available" },
+    { id:uid(), number:"301", type:"Deluxe", price:50000, status:"maintenance" },
+  ];
+  const reservations = [
+    { id:uid(), guest:"K. Amouzou", roomNumber:"102", checkin:today, checkout:addDays(today,2), status:"checked-in", notes:"" },
+  ];
+  const stockBoisson = [
+    { id:uid(), name:"Eau minérale", qty:60, unit:"bouteilles", threshold:20 },
+    { id:uid(), name:"Bière (Awooyo)", qty:8, unit:"casiers", threshold:10 },
+    { id:uid(), name:"Sodas", qty:30, unit:"bouteilles", threshold:15 },
+  ];
+  const stockNourriture = [
+    { id:uid(), name:"Riz", qty:25, unit:"kg", threshold:10 },
+    { id:uid(), name:"Poulet", qty:4, unit:"kg", threshold:5 },
+    { id:uid(), name:"Légumes", qty:12, unit:"kg", threshold:8 },
+  ];
+  const users = [
+    { username:"manager", password:"manager123", role:"manager", name:"Manager" },
+    { username:"reception", password:"reception123", role:"reception", name:"Réceptionniste" },
+  ];
+  // Historique de démonstration (3 jours déjà clôturés)
+  const closedDays = [3,2,1].map(offset => {
+    const day = addDays(today, -offset);
+    return {
+      day, closedAt: day + "T22:00:00",
+      roomsTotal: rooms.length,
+      occupied: 2 + (offset % 2),
+      occupancyRate: Math.round(((2 + (offset % 2)) / rooms.length) * 100),
+      revenue: 30000 + offset * 5000,
+      arrivals: 1, departures: offset === 2 ? 1 : 0,
+      boissonEntrees: 0, boissonSorties: 10 + offset,
+      nourritureEntrees: 5, nourritureSorties: 6 + offset,
+      lowStockCount: offset === 3 ? 1 : 0,
+    };
+  });
+  return {
+    settings: { dayBoundary: "midnight", hotelName: "Villa Blanca" },
+    currentDay: today,
+    closedDays,
+    rooms, reservations, stockBoisson, stockNourriture,
+    movements: [],
+    users,
+  };
 }
 
-// ---- Components ----
+function loadDataLocalFallback() {
+  const s = seedData();
+  return s;
+}
 
 function Toast({ toast }) {
   return (
-    <div style={{
-      position:"fixed", bottom:"24px", right:"24px", zIndex:9999,
-      padding:"12px 20px", borderRadius:"12px", boxShadow:"0 8px 32px rgba(22,36,43,0.18)",
-      fontSize:"14px", display:"flex", alignItems:"center", gap:"10px",
-      background: toast.kind === "error" ? TOKENS.brick : TOKENS.ink,
-      color: TOKENS.paper, animation:"slideUp 0.3s ease-out",
-    }}>
+    <div style={{ position:"fixed", bottom:"24px", right:"24px", zIndex:9999, padding:"12px 20px", borderRadius:"12px",
+      boxShadow:"0 8px 32px rgba(22,36,43,0.18)", fontSize:"14px", display:"flex", alignItems:"center", gap:"10px",
+      background: toast.kind === "error" ? TOKENS.brick : TOKENS.ink, color: TOKENS.paper, animation:"slideUp 0.3s ease-out" }}>
       {toast.kind === "error" ? <I.AlertTriangle size={18} /> : <I.CheckCircle2 size={18} />}
       <span style={{ fontWeight:500 }}>{toast.msg}</span>
     </div>
   );
 }
 
-function LoginScreen({ users, onLogin, storageError }) {
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [error, setError] = React.useState("");
+function LoginScreen({ users, onLogin, storageError, hotelName }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const submit = (e) => {
     e.preventDefault();
     const found = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password);
-    if (found) { setError(""); onLogin(found); }
-    else setError("Identifiant ou mot de passe incorrect.");
+    if (found) { setError(""); onLogin(found); } else setError("Identifiant ou mot de passe incorrect.");
   };
 
   return (
-    <div style={{
-      minHeight:"100%", display:"flex", alignItems:"center", justifyContent:"center",
-      background:`linear-gradient(135deg, ${TOKENS.ink} 0%, #1a2f38 50%, ${TOKENS.inkSoft} 100%)`,
-      position:"relative", overflow:"hidden",
-    }}>
-      {/* Subtle pattern */}
+    <div style={{ minHeight:"100%", display:"flex", alignItems:"center", justifyContent:"center",
+      background:`linear-gradient(135deg, ${TOKENS.ink} 0%, #1a2f38 50%, ${TOKENS.inkSoft} 100%)`, position:"relative", overflow:"hidden" }}>
       <div style={{ position:"absolute", inset:0, opacity:0.04,
-        backgroundImage:"radial-gradient(circle at 25% 25%, #C08A3E 1px, transparent 1px)",
-        backgroundSize:"40px 40px" }} />
-      <div className="anim-slide" style={{
-        width:"100%", maxWidth:"420px", padding:"20px",
-      }}>
-        <div style={{
-          background:TOKENS.paper, borderRadius:"20px", padding:"40px 36px 32px",
-          boxShadow:"0 20px 60px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.15)",
-          position:"relative", overflow:"hidden",
-        }}>
-          {/* Top accent */}
-          <div style={{
-            position:"absolute", top:0, left:0, right:0, height:"4px",
-            background:`linear-gradient(90deg, ${TOKENS.brass}, ${TOKENS.brassSoft}, ${TOKENS.brass})`,
-          }} />
-
+        backgroundImage:"radial-gradient(circle at 25% 25%, #C08A3E 1px, transparent 1px)", backgroundSize:"40px 40px" }} />
+      <div className="anim-slide" style={{ width:"100%", maxWidth:"420px", padding:"20px" }}>
+        <div style={{ background:TOKENS.paper, borderRadius:"20px", padding:"40px 36px 32px",
+          boxShadow:"0 20px 60px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.15)", position:"relative", overflow:"hidden" }}>
+          <div style={{ position:"absolute", top:0, left:0, right:0, height:"4px",
+            background:`linear-gradient(90deg, ${TOKENS.brass}, ${TOKENS.brassSoft}, ${TOKENS.brass})` }} />
           <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"6px" }}>
-            <div style={{
-              width:"40px", height:"40px", borderRadius:"12px",
-              background:TOKENS.ink, display:"flex", alignItems:"center", justifyContent:"center",
-            }}>
+            <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:TOKENS.ink,
+              display:"flex", alignItems:"center", justifyContent:"center" }}>
               <I.KeyRound size={20} style={{ color:TOKENS.brass }} />
             </div>
             <div>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:"22px", color:TOKENS.ink, fontWeight:600 }}>
-                Villa Blanca
-              </div>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:"22px", color:TOKENS.ink, fontWeight:600 }}>{hotelName}</div>
               <div style={{ fontSize:"11px", color:TOKENS.slate, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:"0.05em", textTransform:"uppercase" }}>
                 Gestion hôtelière
               </div>
             </div>
           </div>
-
           <form onSubmit={submit} style={{ marginTop:"28px", display:"flex", flexDirection:"column", gap:"18px" }}>
             <div>
-              <label style={{ fontSize:"12px", color:TOKENS.slate, fontWeight:600, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.04em", display:"block", marginBottom:"6px" }}>
-                Identifiant
-              </label>
-              <input className="input" value={username} onChange={e => setUsername(e.target.value)}
-                placeholder="admin" autoFocus
-                style={{ borderColor: TOKENS.line, background:"rgba(247,242,233,0.5)" }}
-              />
+              <label style={{ fontSize:"12px", color:TOKENS.slate, fontWeight:600, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.04em", display:"block", marginBottom:"6px" }}>Identifiant</label>
+              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="manager" autoFocus style={{ borderColor:TOKENS.line, background:"rgba(247,242,233,0.5)" }} />
             </div>
             <div>
-              <label style={{ fontSize:"12px", color:TOKENS.slate, fontWeight:600, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.04em", display:"block", marginBottom:"6px" }}>
-                Mot de passe
-              </label>
-              <input type="password" className="input" value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                style={{ borderColor: TOKENS.line, background:"rgba(247,242,233,0.5)" }}
-              />
+              <label style={{ fontSize:"12px", color:TOKENS.slate, fontWeight:600, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.04em", display:"block", marginBottom:"6px" }}>Mot de passe</label>
+              <input type="password" className="input" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={{ borderColor:TOKENS.line, background:"rgba(247,242,233,0.5)" }} />
             </div>
-            {error && (
-              <div style={{ fontSize:"13px", display:"flex", alignItems:"center", gap:"6px", color:TOKENS.brick, padding:"10px 14px", borderRadius:"10px", background:"rgba(166,72,59,0.08)" }}>
-                <I.AlertTriangle size={15} /> {error}
-              </div>
-            )}
-            <button type="submit" className="btn btn-primary"
-              style={{ justifyContent:"center", padding:"12px", fontSize:"15px", fontWeight:600 }}>
-              <I.KeyRound size={16} /> Se connecter
+            {error && <div style={{ fontSize:"13px", display:"flex", alignItems:"center", gap:"6px", color:TOKENS.brick, padding:"10px 14px", borderRadius:"10px", background:"rgba(166,72,59,0.08)" }}><I.AlertTriangle size={15}/> {error}</div>}
+            <button type="submit" className="btn btn-primary" style={{ justifyContent:"center", padding:"12px", fontSize:"15px", fontWeight:600 }}>
+              <I.KeyRound size={16}/> Se connecter
             </button>
           </form>
-
-          <div style={{
-            marginTop:"20px", padding:"14px 16px", borderRadius:"12px",
-            background:TOKENS.paperDim, fontSize:"12px", lineHeight:1.6, color:TOKENS.slate,
-          }}>
-            <strong style={{ color:TOKENS.ink }}>Comptes de démonstration</strong><br />
-            <span className="tag" style={{ background:TOKENS.ink, color:TOKENS.paper, margin:"4px 4px 4px 0" }}>admin</span> admin / admin123
-            <br />
+          <div style={{ marginTop:"20px", padding:"14px 16px", borderRadius:"12px", background:TOKENS.paperDim, fontSize:"12px", lineHeight:1.6, color:TOKENS.slate }}>
+            <strong style={{ color:TOKENS.ink }}>Comptes de démonstration</strong><br/>
+            <span className="tag" style={{ background:TOKENS.ink, color:TOKENS.paper, margin:"4px 4px 4px 0" }}>manager</span> manager / manager123<br/>
             <span className="tag" style={{ background:TOKENS.ink, color:TOKENS.paper, margin:"4px 4px 4px 0" }}>reception</span> reception / reception123
           </div>
-
-          {storageError && (
-            <div style={{ marginTop:"12px", fontSize:"12px", color:TOKENS.brick, padding:"10px", borderRadius:"8px", background:"rgba(166,72,59,0.06)" }}>
-              Stockage inaccessible — données non persistées.
-            </div>
-          )}
+          {storageError && <div style={{ marginTop:"12px", fontSize:"12px", color:TOKENS.brick, padding:"10px", borderRadius:"8px", background:"rgba(166,72,59,0.06)" }}>Stockage inaccessible — données non persistées.</div>}
         </div>
       </div>
     </div>
   );
 }
 
-function Sidebar({ view, setView, role, currentUser, onLogout }) {
+function Sidebar({ view, setView, role, currentUser, onLogout, hotelName }) {
   const items = [
-    { key:"dashboard", label:"Tableau de bord", icon:I.LayoutGrid, roles:["admin","reception","stock"] },
-    { key:"rooms", label:"Chambres", icon:I.BedDouble, roles:["admin","reception","stock"] },
-    { key:"reservations", label:"Réservations", icon:I.CalendarCheck, roles:["admin","reception"] },
-    { key:"stock", label:"Stocks", icon:I.Package, roles:["admin","stock"] },
-    { key:"users", label:"Utilisateurs", icon:I.Users, roles:["admin"] },
+    { key:"dashboard", label:"Tableau de bord", icon:I.LayoutGrid, roles:["manager","reception"] },
+    { key:"rooms", label:"Chambres", icon:I.BedDouble, roles:["manager","reception"] },
+    { key:"reservations", label:"Réservations", icon:I.CalendarCheck, roles:["manager","reception"] },
+    { key:"stock", label:"Stock", icon:I.Package, roles:["manager","reception"] },
+    { key:"cumuls", label:"Cumuls", icon:I.ClipboardList, roles:["manager","reception"] },
+    { key:"cloture", label:"Clôture du jour", icon:I.Lock, roles:["manager"] },
+    { key:"users", label:"Utilisateurs", icon:I.Users, roles:["manager"] },
   ];
-
   return (
-    <div style={{
-      width:"240px", minWidth:"240px", display:"flex", flexDirection:"column", justifyContent:"space-between",
-      background:`linear-gradient(180deg, ${TOKENS.ink} 0%, #111e24 100%)`,
-      color:TOKENS.paper, padding:"20px 16px", borderRight:"1px solid rgba(255,255,255,0.04)",
-    }}>
+    <div style={{ width:"240px", minWidth:"240px", display:"flex", flexDirection:"column", justifyContent:"space-between",
+      background:`linear-gradient(180deg, ${TOKENS.ink} 0%, #111e24 100%)`, color:TOKENS.paper, padding:"20px 16px", borderRight:"1px solid rgba(255,255,255,0.04)" }}>
       <div>
-        {/* Logo / Brand */}
         <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"32px", padding:"0 8px" }}>
-          <div style={{
-            width:"36px", height:"36px", borderRadius:"10px",
-            background:`linear-gradient(135deg, ${TOKENS.brass}, ${TOKENS.brassSoft})`,
-            display:"flex", alignItems:"center", justifyContent:"center",
-          }}>
+          <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:`linear-gradient(135deg, ${TOKENS.brass}, ${TOKENS.brassSoft})`, display:"flex", alignItems:"center", justifyContent:"center" }}>
             <I.Hotel size={18} style={{ color:TOKENS.ink }} />
           </div>
           <div>
-            <div style={{ fontFamily:"'Fraunces',serif", fontSize:"17px", fontWeight:600, lineHeight:1.2 }}>Villa Blanca</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:"17px", fontWeight:600, lineHeight:1.2 }}>{hotelName}</div>
             <div style={{ fontSize:"10px", opacity:0.5, fontFamily:"'IBM Plex Mono',monospace", letterSpacing:"0.06em" }}>MANAGER</div>
           </div>
         </div>
-
-        {/* Nav */}
         <nav style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
           {items.filter(it => it.roles.includes(role)).map(it => {
-            const IconComp = it.icon;
-            const active = view === it.key;
+            const IconComp = it.icon; const active = view === it.key;
             return (
-              <button key={it.key} onClick={() => setView(it.key)}
-                style={{
-                  width:"100%", display:"flex", alignItems:"center", gap:"10px",
-                  padding:"10px 12px", borderRadius:"10px", textAlign:"left",
-                  fontSize:"14px", fontWeight: active ? 600 : 400,
-                  border:"none", cursor:"pointer",
-                  background: active ? `rgba(255,255,255,0.08)` : "transparent",
-                  color: active ? TOKENS.paper : "rgba(247,242,233,0.55)",
-                  backdropFilter: active ? "blur(4px)" : "none",
-                  transition:"all 0.15s ease",
-                }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
-              >
-                <IconComp size={17} />
-                {it.label}
+              <button key={it.key} onClick={()=>setView(it.key)} style={{
+                width:"100%", display:"flex", alignItems:"center", gap:"10px", padding:"10px 12px", borderRadius:"10px",
+                textAlign:"left", fontSize:"14px", fontWeight:active?600:400, border:"none", cursor:"pointer",
+                background: active ? "rgba(255,255,255,0.08)" : "transparent",
+                color: active ? TOKENS.paper : "rgba(247,242,233,0.55)", transition:"all 0.15s ease" }}
+                onMouseEnter={e=>{if(!active)e.currentTarget.style.background="rgba(255,255,255,0.04)";}}
+                onMouseLeave={e=>{if(!active)e.currentTarget.style.background="transparent";}}>
+                <IconComp size={17} /> {it.label}
                 {active && <div style={{ marginLeft:"auto", width:"4px", height:"24px", borderRadius:"2px", background:TOKENS.brass }} />}
               </button>
             );
           })}
         </nav>
       </div>
-
-      {/* User footer */}
       <div style={{ padding:"12px", borderRadius:"10px", background:"rgba(255,255,255,0.04)" }}>
         <div style={{ fontSize:"12px", marginBottom:"8px", opacity:0.6, fontFamily:"'IBM Plex Mono',monospace", lineHeight:1.4 }}>
           <div style={{ fontWeight:500, color:TOKENS.paper }}>{currentUser.name}</div>
@@ -355,43 +343,40 @@ function Sidebar({ view, setView, role, currentUser, onLogout }) {
             {ROLE_LABEL[currentUser.role]}
           </span>
         </div>
-        <button onClick={onLogout} className="btn btn-ghost"
-          style={{ width:"100%", justifyContent:"center", color:"rgba(247,242,233,0.6)", padding:"8px" }}>
-          <I.LogOut size={14} /> Déconnexion
+        <button onClick={onLogout} className="btn btn-ghost" style={{ width:"100%", justifyContent:"center", color:"rgba(247,242,233,0.6)", padding:"8px" }}>
+          <I.LogOut size={14}/> Déconnexion
         </button>
       </div>
     </div>
   );
 }
 
-function TopBar({ currentUser, data }) {
-  const lowStock = data.stock.filter(s => s.qty <= s.threshold).length;
-  const occupied = data.rooms.filter(r => r.status === "occupied").length;
-  const total = data.rooms.length;
+function TopBar({ data }) {
+  const allStock = [...data.stockBoisson, ...data.stockNourriture];
+  const lowStock = allStock.filter(s => stockStatus(s).level > 0).length;
+  const dueClosure = isPastBoundary(data.currentDay, data.settings.dayBoundary);
   return (
-    <div style={{
-      height:"60px", display:"flex", alignItems:"center", justifyContent:"space-between",
-      padding:"0 28px", borderBottom:`1px solid ${TOKENS.line}`,
-      background:"rgba(255,255,255,0.6)", backdropFilter:"blur(8px)",
-    }}>
+    <div style={{ height:"60px", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 28px",
+      borderBottom:`1px solid ${TOKENS.line}`, background:"rgba(255,255,255,0.6)", backdropFilter:"blur(8px)" }}>
       <div style={{ display:"flex", alignItems:"center", gap:"16px" }}>
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:"17px", color:TOKENS.ink }}>
-          {new Date().toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+          Journée du {formatDateLong(data.currentDay)}
         </div>
         <div style={{ width:"1px", height:"20px", background:TOKENS.line }} />
-        <div style={{ fontSize:"13px", color:TOKENS.slate }}>
-          <span style={{ fontWeight:600, color:TOKENS.teal }}>{available=data.rooms.filter(r=>r.status==='available').length}</span> disponible{available!==1?'s':''} · {total} chambres
+        <div style={{ fontSize:"13px", color:TOKENS.slate, display:"flex", alignItems:"center", gap:"6px" }}>
+          {data.settings.dayBoundary === "midnight" ? <I.Moon size={13}/> : <I.Sun size={13}/>}
+          Bascule à {data.settings.dayBoundary === "midnight" ? "minuit" : "midi"}
         </div>
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+        {dueClosure && (
+          <div style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"13px", padding:"6px 14px", borderRadius:"8px", background:"rgba(192,138,62,0.12)", color:TOKENS.amber }}>
+            <I.AlertTriangle size={14}/> Clôture du jour recommandée
+          </div>
+        )}
         {lowStock > 0 && (
-          <div style={{
-            display:"flex", alignItems:"center", gap:"6px", fontSize:"13px",
-            padding:"6px 14px", borderRadius:"8px",
-            background:"rgba(166,72,59,0.08)", color:TOKENS.brick,
-          }}>
-            <I.AlertTriangle size={14} />
-            {lowStock} article{lowStock!==1?'s':''} en stock bas
+          <div style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"13px", padding:"6px 14px", borderRadius:"8px", background:"rgba(166,72,59,0.08)", color:TOKENS.brick }}>
+            <I.AlertTriangle size={14}/> {lowStock} alerte{lowStock!==1?'s':''} stock
           </div>
         )}
       </div>
@@ -404,104 +389,72 @@ function StatCard({ label, value, sub, color, icon }) {
   return (
     <div className="card hover-lift anim-stagger" style={{ padding:"18px 20px" }}>
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"8px" }}>
-        <div style={{ fontSize:"11px", color:TOKENS.slate, fontWeight:600, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.04em" }}>
-          {label}
-        </div>
+        <div style={{ fontSize:"11px", color:TOKENS.slate, fontWeight:600, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.04em" }}>{label}</div>
         {IconComp && <IconComp size={18} style={{ color: color || TOKENS.slate, opacity:0.6 }} />}
       </div>
-      <div style={{ fontFamily:"'Fraunces',serif", fontSize:"28px", fontWeight:700, color: color || TOKENS.ink, lineHeight:1.2 }}>
-        {value}
-      </div>
+      <div style={{ fontFamily:"'Fraunces',serif", fontSize:"28px", fontWeight:700, color: color || TOKENS.ink, lineHeight:1.2 }}>{value}</div>
       {sub && <div style={{ fontSize:"12px", color:TOKENS.slate, marginTop:"4px" }}>{sub}</div>}
     </div>
   );
 }
 
 function Dashboard({ data }) {
-  const available = data.rooms.filter(r => r.status === "available").length;
-  const occupied = data.rooms.filter(r => r.status === "occupied").length;
-  const maintenance = data.rooms.filter(r => r.status === "maintenance").length;
-  const checkoutsToday = data.reservations.filter(r => r.checkout === todayStr() && r.status === "checked-in").length;
-  const lowStockItems = data.stock.filter(s => s.qty <= s.threshold);
-  const occupancyRate = data.rooms.length > 0 ? Math.round((occupied / data.rooms.length) * 100) : 0;
+  const snap = daySnapshot(data, data.currentDay);
+  const allStock = [...data.stockBoisson.map(s=>({...s,cat:"boisson"})), ...data.stockNourriture.map(s=>({...s,cat:"nourriture"}))];
+  const alerts = allStock.filter(s => stockStatus(s).level > 0).sort((a,b)=>stockStatus(b).level-stockStatus(a).level);
 
   return (
-    <div className="anim-fade" style={{ display:"flex", flexDirection:"column", gap:"24px" }}>
-      {/* Stats */}
+    <div className="anim-in" style={{ display:"flex", flexDirection:"column", gap:"24px" }}>
       <div className="stats-grid">
-        <StatCard label="Disponibles" value={available} sub={`sur ${data.rooms.length} chambres`} color={TOKENS.teal} icon={I.BedDouble} />
-        <StatCard label="Occupées" value={occupied} sub={`${occupancyRate}% du parc`} color={TOKENS.brick} icon={I.DoorClosed} />
-        <StatCard label="En maintenance" value={maintenance} color={TOKENS.slate} icon={I.Package} />
-        <StatCard label="Départs aujourd'hui" value={checkoutsToday} color={TOKENS.brass} icon={I.TrendingUp} />
+        <StatCard label="Disponibles" value={data.rooms.length-snap.occupied} sub={`sur ${snap.roomsTotal} chambres`} color={TOKENS.teal} icon={I.BedDouble} />
+        <StatCard label="Occupées" value={snap.occupied} sub={`${snap.occupancyRate}% du parc`} color={TOKENS.brick} icon={I.DoorClosed} />
+        <StatCard label="Revenu estimé" value={formatCurrency(snap.revenue)} sub="chambres occupées" color={TOKENS.brass} icon={I.TrendingUp} />
+        <StatCard label="Arrivées / Départs" value={`${snap.arrivals} / ${snap.departures}`} sub="prévus aujourd'hui" color={TOKENS.slate} icon={I.CalendarCheck} />
       </div>
 
-      {/* Room key */}
       <div className="card" style={{ padding:"20px", overflow:"hidden" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"14px" }}>
-          <div style={{ fontFamily:"'Fraunces',serif", fontSize:"18px", fontWeight:600, color:TOKENS.ink }}>
-            Trousseau des chambres
-          </div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:"18px", fontWeight:600, color:TOKENS.ink }}>Trousseau des chambres</div>
           <div style={{ display:"flex", gap:"12px", fontSize:"12px" }}>
             {Object.entries(ROOM_STATUS).map(([k,v]) => (
               <div key={k} style={{ display:"flex", alignItems:"center", gap:"5px", color:TOKENS.slate }}>
-                <span style={{ width:"8px", height:"8px", borderRadius:"50%", background:v.color }} />
-                {v.label}
+                <span style={{ width:"8px", height:"8px", borderRadius:"50%", background:v.color }} /> {v.label}
               </div>
             ))}
           </div>
         </div>
         <div className="room-grid">
-          {data.rooms.map((r, i) => (
-            <div key={r.id} className="room-tile anim-in"
-              style={{
-                borderColor: ROOM_STATUS[r.status].color,
-                background: r.status === "available" ? "white" : `${ROOM_STATUS[r.status].color}08`,
-                animationDelay: `${i*0.04}s`,
-              }}>
-              <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"16px", fontWeight:700, color:TOKENS.ink }}>
-                {r.number}
-              </div>
+          {data.rooms.map((r,i) => (
+            <div key={r.id} className="room-tile anim-in" style={{ borderColor:ROOM_STATUS[r.status].color,
+              background: r.status==="available" ? "white" : `${ROOM_STATUS[r.status].color}08`, animationDelay:`${i*0.04}s` }}>
+              <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"16px", fontWeight:700, color:TOKENS.ink }}>{r.number}</div>
               <div style={{ fontSize:"10px", color:TOKENS.slate, marginTop:"2px" }}>{r.type}</div>
-              <div className="tag" style={{
-                marginTop:"8px", fontSize:"10px",
-                background: ROOM_STATUS[r.status].color,
-                color:"white", padding:"2px 8px",
-              }}>
-                {ROOM_STATUS[r.status].label}
-              </div>
-              <div style={{ fontSize:"10px", color:TOKENS.brass, marginTop:"4px", fontWeight:600 }}>
-                {r.price.toLocaleString()} F
-              </div>
+              <div className="tag" style={{ marginTop:"8px", fontSize:"10px", background:ROOM_STATUS[r.status].color, color:"white", padding:"2px 8px" }}>{ROOM_STATUS[r.status].label}</div>
+              <div style={{ fontSize:"10px", color:TOKENS.brass, marginTop:"4px", fontWeight:600 }}>{r.price.toLocaleString()} F</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Low stock alert */}
-      {lowStockItems.length > 0 && (
+      {alerts.length > 0 && (
         <div className="card anim-in" style={{ padding:"20px", borderColor:TOKENS.brick, borderWidth:"1.5px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"12px" }}>
             <div style={{ width:"28px", height:"28px", borderRadius:"8px", background:"rgba(166,72,59,0.12)", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <I.AlertTriangle size={15} style={{ color:TOKENS.brick }} />
             </div>
-            <div style={{ fontFamily:"'Fraunces',serif", fontSize:"16px", fontWeight:600, color:TOKENS.brick }}>
-              Stock à réapprovisionner
-            </div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:"16px", fontWeight:600, color:TOKENS.brick }}>Alertes de stock</div>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-            {lowStockItems.map((s, i) => (
-              <div key={s.id} className="anim-in" style={{
-                display:"flex", alignItems:"center", justifyContent:"space-between",
-                padding:"10px 14px", borderRadius:"10px",
-                background:"rgba(166,72,59,0.04)", border:`1px solid rgba(166,72,59,0.12)`,
-                animationDelay:`${i*0.06}s`,
-              }}>
-                <span style={{ fontWeight:500, fontSize:"14px" }}>{s.name}</span>
-                <span style={{ fontWeight:600, fontSize:"13px", color:TOKENS.brick }}>
-                  {s.qty} / {s.threshold} {s.unit}
-                </span>
-              </div>
-            ))}
+            {alerts.map((s,i) => {
+              const st = stockStatus(s);
+              return (
+                <div key={s.id} className="anim-in" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px",
+                  borderRadius:"10px", background:"rgba(166,72,59,0.04)", border:"1px solid rgba(166,72,59,0.12)", animationDelay:`${i*0.06}s` }}>
+                  <span style={{ fontWeight:500, fontSize:"14px" }}>{STOCK_CATS[s.cat].label.slice(0,-1)} · {s.name}</span>
+                  <span className="tag" style={{ background:st.color, color:"white", fontSize:"11px" }}>{st.label} — {s.qty} {s.unit}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -510,25 +463,16 @@ function Dashboard({ data }) {
 }
 
 function Modal({ title, onClose, children }) {
-  React.useEffect(() => { const h=el=>{if(el.key==="Escape")onClose()}; window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); }, [onClose]);
+  useEffect(() => { const h=e=>{if(e.key==="Escape")onClose();}; window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); }, [onClose]);
   return (
-    <div onClick={onClose} style={{
-      position:"fixed", inset:0, display:"flex", alignItems:"center", justifyContent:"center", zIndex:100,
-      background:"rgba(22,36,43,0.45)", backdropFilter:"blur(4px)", padding:"20px",
-      animation:"fadeIn 0.15s ease-out",
-    }}>
-      <div onClick={e => e.stopPropagation()} className="anim-slide" style={{
-        width:"100%", maxWidth:"480px", borderRadius:"16px", padding:"28px",
-        background:TOKENS.paper, boxShadow:"0 20px 60px rgba(22,36,43,0.2)",
-        position:"relative", overflow:"hidden",
-      }}>
-        {/* Top accent */}
+    <div onClick={onClose} style={{ position:"fixed", inset:0, display:"flex", alignItems:"center", justifyContent:"center", zIndex:100,
+      background:"rgba(22,36,43,0.45)", backdropFilter:"blur(4px)", padding:"20px", animation:"fadeIn 0.15s ease-out" }}>
+      <div onClick={e=>e.stopPropagation()} className="anim-slide" style={{ width:"100%", maxWidth:"480px", borderRadius:"16px", padding:"28px",
+        background:TOKENS.paper, boxShadow:"0 20px 60px rgba(22,36,43,0.2)", position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", top:0, left:0, right:0, height:"3px", background:`linear-gradient(90deg, ${TOKENS.brass}, ${TOKENS.brassSoft})` }} />
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px" }}>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:"20px", fontWeight:600, color:TOKENS.ink }}>{title}</div>
-          <button onClick={onClose} style={{ width:"32px", height:"32px", borderRadius:"8px", border:"none", background:"rgba(22,36,43,0.06)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", transition:"background 0.15s" }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(22,36,43,0.12)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(22,36,43,0.06)"}>
+          <button onClick={onClose} style={{ width:"32px", height:"32px", borderRadius:"8px", border:"none", background:"rgba(22,36,43,0.06)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <I.X size={16} style={{ color:TOKENS.slate }} />
           </button>
         </div>
@@ -541,40 +485,26 @@ function Modal({ title, onClose, children }) {
 function Field({ label, children }) {
   return (
     <div style={{ marginBottom:"16px" }}>
-      <label style={{ fontSize:"12px", fontWeight:600, color:TOKENS.slate, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.04em", display:"block", marginBottom:"6px" }}>
-        {label}
-      </label>
+      <label style={{ fontSize:"12px", fontWeight:600, color:TOKENS.slate, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.04em", display:"block", marginBottom:"6px" }}>{label}</label>
       <div>{children}</div>
     </div>
   );
 }
 
-function Table({ headers, rows, actions }) {
+function Table({ headers, rows }) {
   return (
     <div className="card" style={{ overflow:"hidden", padding:0 }}>
       <div style={{ overflowX:"auto" }}>
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"14px" }}>
           <thead>
             <tr style={{ background:TOKENS.paperDim }}>
-              {headers.map(h => (
-                <th key={h} style={{ padding:"12px 16px", textAlign:"left", fontSize:"12px", fontWeight:600, color:TOKENS.slate, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.03em" }}>
-                  {h}
-                </th>
-              ))}
+              {headers.map(h => <th key={h} style={{ padding:"12px 16px", textAlign:"left", fontSize:"12px", fontWeight:600, color:TOKENS.slate, fontFamily:"'IBM Plex Mono',monospace", textTransform:"uppercase", letterSpacing:"0.03em" }}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
-              <tr key={row.id || i} style={{
-                borderTop:`1px solid ${TOKENS.line}`,
-                transition:"background 0.15s",
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(247,242,233,0.5)"}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >
-                {row.cells.map((cell, j) => (
-                  <td key={j} style={{ padding:"10px 16px", verticalAlign:"middle" }}>{cell}</td>
-                ))}
+            {rows.map((row,i) => (
+              <tr key={row.id||i} style={{ borderTop:`1px solid ${TOKENS.line}` }}>
+                {row.cells.map((cell,j) => <td key={j} style={{ padding:"10px 16px", verticalAlign:"middle" }}>{cell}</td>)}
               </tr>
             ))}
           </tbody>
@@ -585,253 +515,142 @@ function Table({ headers, rows, actions }) {
 }
 
 function RoomsView({ data, persist, role, showToast }) {
-  const [modal, setModal] = React.useState(null);
-  const canManage = role === "admin";
-  const [draft, setDraft] = React.useState({ number:"", type:"Simple", price:15000, status:"available" });
+  const [modal, setModal] = useState(null);
+  const canManage = role === "manager";
+  const [draft, setDraft] = useState({ number:"", type:"Simple", price:15000, status:"available" });
 
-  React.useEffect(() => {
-    if (modal) setDraft(modal.room || { number:"", type:"Simple", price:15000, status:"available" });
-  }, [modal]);
+  useEffect(() => { if (modal) setDraft(modal.room || { number:"", type:"Simple", price:15000, status:"available" }); }, [modal]);
 
   const save = async () => {
     if (!draft.number.trim()) { showToast("Le numéro de chambre est requis.", "error"); return; }
     const price = Number(draft.price);
     let rooms;
     if (modal.mode === "add") rooms = [...data.rooms, { ...draft, id:uid(), price }];
-    else rooms = data.rooms.map(r => r.id === modal.room.id ? { ...draft, price } : r);
+    else rooms = data.rooms.map(r => r.id===modal.room.id ? { ...draft, price } : r);
     await persist({ ...data, rooms });
-    showToast(modal.mode === "add" ? "Chambre ajoutée." : "Chambre modifiée.");
+    showToast(modal.mode==="add" ? "Chambre ajoutée." : "Chambre modifiée.");
     setModal(null);
   };
-
-  const remove = async (room) => {
-    await persist({ ...data, rooms: data.rooms.filter(r => r.id !== room.id) });
-    showToast("Chambre supprimée.");
-  };
+  const remove = async (room) => { await persist({ ...data, rooms:data.rooms.filter(r=>r.id!==room.id) }); showToast("Chambre supprimée."); };
 
   return (
-    <div className="anim-fade" style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+    <div className="anim-in" style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:TOKENS.ink }}>Chambres</div>
           <div style={{ fontSize:"13px", color:TOKENS.slate, marginTop:"4px" }}>{data.rooms.length} chambre{data.rooms.length!==1?'s':''} au total</div>
         </div>
-        {canManage && (
-          <button onClick={() => setModal({ mode:"add", room:null })} className="btn btn-primary">
-            <I.Plus size={16} /> Ajouter une chambre
-          </button>
-        )}
+        {canManage && <button onClick={()=>setModal({mode:"add",room:null})} className="btn btn-primary"><I.Plus size={16}/> Ajouter une chambre</button>}
       </div>
-
-      <Table
-        headers={["N°", "Type", "Prix / nuit", "Statut", ...(canManage ? ["Actions"] : [])]}
-        rows={data.rooms.map(r => ({
-          id: r.id,
-          cells: [
-            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontWeight:600, fontSize:"14px" }}>{r.number}</span>,
-            <span>{r.type}</span>,
-            <span style={{ fontWeight:600, color:TOKENS.brass }}>{formatCurrency(r.price)}</span>,
-            <span className="tag" style={{ background:ROOM_STATUS[r.status].color, color:"white" }}>{ROOM_STATUS[r.status].label}</span>,
-            ...(canManage ? [(
-              <div style={{ display:"flex", gap:"6px" }}>
-                <button onClick={() => setModal({ mode:"edit", room:r })} className="btn-ghost" style={{ width:"32px", height:"32px", padding:0, borderRadius:"8px", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
-                  <I.Pencil size={14} style={{ color:TOKENS.slate }} />
-                </button>
-                <button onClick={() => remove(r)} className="btn-ghost" style={{ width:"32px", height:"32px", padding:0, borderRadius:"8px", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
-                  <I.Trash2 size={14} style={{ color:TOKENS.brick }} />
-                </button>
-              </div>
-            )] : []),
-          ]
-        }))}
-      />
-
+      <Table headers={["N°","Type","Prix / nuit","Statut", ...(canManage?["Actions"]:[])]} rows={data.rooms.map(r => ({
+        id:r.id, cells:[
+          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontWeight:600 }}>{r.number}</span>,
+          <span>{r.type}</span>,
+          <span style={{ fontWeight:600, color:TOKENS.brass }}>{formatCurrency(r.price)}</span>,
+          <span className="tag" style={{ background:ROOM_STATUS[r.status].color, color:"white" }}>{ROOM_STATUS[r.status].label}</span>,
+          ...(canManage ? [(
+            <div style={{ display:"flex", gap:"6px" }}>
+              <button onClick={()=>setModal({mode:"edit",room:r})} className="btn-ghost" style={{ width:"32px", height:"32px", padding:0, borderRadius:"8px", display:"inline-flex", alignItems:"center", justifyContent:"center" }}><I.Pencil size={14} style={{color:TOKENS.slate}}/></button>
+              <button onClick={()=>remove(r)} className="btn-ghost" style={{ width:"32px", height:"32px", padding:0, borderRadius:"8px", display:"inline-flex", alignItems:"center", justifyContent:"center" }}><I.Trash2 size={14} style={{color:TOKENS.brick}}/></button>
+            </div>
+          )] : []),
+        ]
+      }))} />
       {modal && (
-        <Modal title={modal.mode === "add" ? "Nouvelle chambre" : "Modifier la chambre"} onClose={() => setModal(null)}>
-          <Field label="Numéro">
-            <input className="input" value={draft.number} onChange={e => setDraft({...draft, number:e.target.value})} placeholder="Ex: 401" />
-          </Field>
-          <Field label="Type">
-            <input className="input" value={draft.type} onChange={e => setDraft({...draft, type:e.target.value})} placeholder="Simple, Suite, Deluxe…" />
-          </Field>
-          <Field label="Prix par nuit (FCFA)">
-            <input type="number" className="input" value={draft.price} onChange={e => setDraft({...draft, price:e.target.value})} />
-          </Field>
+        <Modal title={modal.mode==="add"?"Nouvelle chambre":"Modifier la chambre"} onClose={()=>setModal(null)}>
+          <Field label="Numéro"><input className="input" value={draft.number} onChange={e=>setDraft({...draft,number:e.target.value})} placeholder="Ex: 401" /></Field>
+          <Field label="Type"><input className="input" value={draft.type} onChange={e=>setDraft({...draft,type:e.target.value})} placeholder="Simple, Suite, Deluxe…" /></Field>
+          <Field label="Prix par nuit (FCFA)"><input type="number" className="input" value={draft.price} onChange={e=>setDraft({...draft,price:e.target.value})} /></Field>
           <Field label="Statut">
-            <select className="input" value={draft.status} onChange={e => setDraft({...draft, status:e.target.value})}>
+            <select className="input" value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}>
               {Object.entries(ROOM_STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </Field>
-          <button onClick={save} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}>
-            <I.CheckCircle2 size={16} /> Enregistrer
-          </button>
+          <button onClick={save} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}><I.CheckCircle2 size={16}/> Enregistrer</button>
         </Modal>
       )}
     </div>
   );
 }
 
-function ReservationsView({ data, persist, role, showToast }) {
-  const [modal, setModal] = React.useState(false);
-  const [draft, setDraft] = React.useState({ guest:"", roomNumber:data.rooms[0]?.number||"", checkin:todayStr(), checkout:todayStr(), notes:"" });
+const RES_STATUS = {
+  booked:{label:"Réservée",color:TOKENS.brass},
+  "checked-in":{label:"Enregistrée",color:TOKENS.teal},
+  "checked-out":{label:"Terminée",color:TOKENS.slate},
+  cancelled:{label:"Annulée",color:TOKENS.brick},
+};
+
+function ReservationsView({ data, persist, showToast }) {
+  const [modal, setModal] = useState(false);
+  const [draft, setDraft] = useState({ guest:"", roomNumber:data.rooms[0]?.number||"", checkin:data.currentDay, checkout:data.currentDay, notes:"" });
 
   const createReservation = async () => {
     if (!draft.guest.trim() || !draft.roomNumber) { showToast("Nom du client et chambre requis.", "error"); return; }
-    const reservation = { ...draft, id:uid(), status:"booked" };
-    await persist({ ...data, reservations:[...data.reservations, reservation] });
+    await persist({ ...data, reservations:[...data.reservations, { ...draft, id:uid(), status:"booked" }] });
     showToast("Réservation créée.");
     setModal(false);
-    setDraft({ guest:"", roomNumber:data.rooms[0]?.number||"", checkin:todayStr(), checkout:todayStr(), notes:"" });
+    setDraft({ guest:"", roomNumber:data.rooms[0]?.number||"", checkin:data.currentDay, checkout:data.currentDay, notes:"" });
   };
-
   const checkIn = async (res) => {
-    await persist({
-      ...data,
-      reservations: data.reservations.map(r => r.id === res.id ? {...r, status:"checked-in"} : r),
-      rooms: data.rooms.map(rm => rm.number === res.roomNumber ? {...rm, status:"occupied"} : rm),
-    });
-    showToast(`✓ ${res.guest} enregistré·e en chambre ${res.roomNumber}.`);
+    await persist({ ...data,
+      reservations: data.reservations.map(r=>r.id===res.id?{...r,status:"checked-in"}:r),
+      rooms: data.rooms.map(rm=>rm.number===res.roomNumber?{...rm,status:"occupied"}:rm) });
+    showToast(`${res.guest} enregistré(e) en chambre ${res.roomNumber}.`);
   };
-
   const checkOut = async (res) => {
-    await persist({
-      ...data,
-      reservations: data.reservations.map(r => r.id === res.id ? {...r, status:"checked-out"} : r),
-      rooms: data.rooms.map(rm => rm.number === res.roomNumber ? {...rm, status:"available"} : rm),
-    });
-    showToast(`✓ Chambre ${res.roomNumber} libérée.`);
+    await persist({ ...data,
+      reservations: data.reservations.map(r=>r.id===res.id?{...r,status:"checked-out"}:r),
+      rooms: data.rooms.map(rm=>rm.number===res.roomNumber?{...rm,status:"available"}:rm) });
+    showToast(`Chambre ${res.roomNumber} libérée.`);
   };
-
-  const cancel = async (res) => {
-    await persist({ ...data, reservations: data.reservations.map(r => r.id === res.id ? {...r, status:"cancelled"} : r) });
-    showToast("Réservation annulée.");
-  };
-
-  const STATUS_LABEL = {
-    booked: { label:"Réservée", color:TOKENS.brass },
-    "checked-in": { label:"Enregistrée", color:TOKENS.teal },
-    "checked-out": { label:"Terminée", color:TOKENS.slate },
-    cancelled: { label:"Annulée", color:TOKENS.brick },
-  };
-
-  const countByStatus = {
-    booked: data.reservations.filter(r => r.status === "booked").length,
-    checkedin: data.reservations.filter(r => r.status === "checked-in").length,
-    checkedout: data.reservations.filter(r => r.status === "checked-out").length,
-    cancelled: data.reservations.filter(r => r.status === "cancelled").length,
-  };
+  const cancel = async (res) => { await persist({ ...data, reservations: data.reservations.map(r=>r.id===res.id?{...r,status:"cancelled"}:r) }); showToast("Réservation annulée."); };
 
   return (
-    <div className="anim-fade" style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+    <div className="anim-in" style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:TOKENS.ink }}>Réservations</div>
-          <div style={{ fontSize:"13px", color:TOKENS.slate, marginTop:"4px" }}>{data.reservations.length} réservation{data.reservations.length!==1?'s':''}</div>
+          <div style={{ fontSize:"13px", color:TOKENS.slate, marginTop:"4px" }}>{data.reservations.length} au total</div>
         </div>
-        <button onClick={() => setModal(true)} className="btn btn-primary">
-          <I.Plus size={16} /> Nouvelle réservation
-        </button>
+        <button onClick={()=>setModal(true)} className="btn btn-primary"><I.Plus size={16}/> Nouvelle réservation</button>
       </div>
 
-      {/* Mini summary */}
-      <div style={{ display:"flex", gap:"10px", flexWrap:"wrap" }}>
-        {[
-          { label:"Réservées", count:countByStatus.booked, color:TOKENS.brass },
-          { label:"En cours", count:countByStatus.checkedin, color:TOKENS.teal },
-          { label:"Terminées", count:countByStatus.checkedout, color:TOKENS.slate },
-          { label:"Annulées", count:countByStatus.cancelled, color:TOKENS.brick },
-        ].map(s => s.count > 0 && (
-          <div key={s.label} className="tag" style={{ background:`${s.color}14`, color:s.color, fontWeight:600, padding:"5px 12px" }}>
-            {s.count} {s.label.toLowerCase()}
+      <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+        {data.reservations.length===0 && <div style={{ fontSize:"14px", color:TOKENS.slate }}>Aucune réservation pour le moment.</div>}
+        {data.reservations.slice().reverse().map(r => (
+          <div key={r.id} className="card" style={{ padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div>
+              <div style={{ fontWeight:600 }}>{r.guest}</div>
+              <div style={{ fontSize:"12px", color:TOKENS.slate, fontFamily:"'IBM Plex Mono',monospace", marginTop:"2px" }}>
+                Chambre {r.roomNumber} · {formatDate(r.checkin)} → {formatDate(r.checkout)}
+              </div>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <span className="tag" style={{ background:RES_STATUS[r.status].color, color:"white" }}>{RES_STATUS[r.status].label}</span>
+              {r.status==="booked" && (<>
+                <button onClick={()=>checkIn(r)} className="btn btn-success" style={{ padding:"6px 12px", fontSize:"12px" }}><I.DoorOpen size={13}/> Check-in</button>
+                <button onClick={()=>cancel(r)} className="btn-ghost" style={{ fontSize:"12px", color:TOKENS.brick, padding:"6px 10px", borderRadius:"8px", border:"none", cursor:"pointer" }}>Annuler</button>
+              </>)}
+              {r.status==="checked-in" && <button onClick={()=>checkOut(r)} className="btn btn-danger" style={{ padding:"6px 12px", fontSize:"12px" }}><I.DoorClosed size={13}/> Check-out</button>}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Reservation list */}
-      <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-        {data.reservations.length === 0 ? (
-          <div className="card" style={{ padding:"32px 20px", textAlign:"center" }}>
-            <div style={{ fontSize:"40px", opacity:0.15, marginBottom:"12px" }}><I.CalendarCheck size={40} /></div>
-            <div style={{ color:TOKENS.slate, fontSize:"14px" }}>Aucune réservation pour le moment.</div>
-          </div>
-        ) : (
-          data.reservations.slice().reverse().map((r, i) => {
-            const room = data.rooms.find(rm => rm.number === r.roomNumber);
-            return (
-              <div key={r.id} className="card hover-lift anim-in" style={{
-                padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between",
-                animationDelay:`${i*0.04}s`,
-                borderLeft:`4px solid ${STATUS_LABEL[r.status].color}`,
-              }}>
-                <div style={{ display:"flex", alignItems:"center", gap:"16px", flex:1 }}>
-                  <div style={{
-                    width:"40px", height:"40px", borderRadius:"10px",
-                    background:`${STATUS_LABEL[r.status].color}12`,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                  }}>
-                    <I.CalendarCheck size={18} style={{ color:STATUS_LABEL[r.status].color }} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight:600, fontSize:"15px", color:TOKENS.ink }}>{r.guest}</div>
-                    <div style={{ fontSize:"12px", color:TOKENS.slate, display:"flex", gap:"12px", marginTop:"2px", fontFamily:"'IBM Plex Mono',monospace" }}>
-                      <span>Chambre {r.roomNumber} {room ? `· ${room.type}` : ""}</span>
-                      <span>{formatDate(r.checkin)} → {formatDate(r.checkout)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-                  <span className="tag" style={{ background:STATUS_LABEL[r.status].color, color:"white", fontSize:"11px" }}>
-                    {STATUS_LABEL[r.status].label}
-                  </span>
-                  {r.status === "booked" && (
-                    <>
-                      <button onClick={() => checkIn(r)} className="btn btn-success" style={{ padding:"6px 12px", fontSize:"12px" }}>
-                        <I.DoorOpen size={13} /> Check-in
-                      </button>
-                      <button onClick={() => cancel(r)} className="btn btn-ghost" style={{ padding:"6px 10px", fontSize:"12px", color:TOKENS.brick }}>
-                        Annuler
-                      </button>
-                    </>
-                  )}
-                  {r.status === "checked-in" && (
-                    <button onClick={() => checkOut(r)} className="btn btn-danger" style={{ padding:"6px 12px", fontSize:"12px" }}>
-                      <I.DoorClosed size={13} /> Check-out
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
       {modal && (
-        <Modal title="Nouvelle réservation" onClose={() => setModal(false)}>
-          <Field label="Nom du client">
-            <input className="input" value={draft.guest} onChange={e => setDraft({...draft, guest:e.target.value})} placeholder="Ex: Jean Dupont" />
-          </Field>
+        <Modal title="Nouvelle réservation" onClose={()=>setModal(false)}>
+          <Field label="Nom du client"><input className="input" value={draft.guest} onChange={e=>setDraft({...draft,guest:e.target.value})} /></Field>
           <Field label="Chambre">
-            <select className="input" value={draft.roomNumber} onChange={e => setDraft({...draft, roomNumber:e.target.value})}>
-              <option value="">— Sélectionner une chambre —</option>
-              {data.rooms.filter(r => r.status === "available" || r.number === draft.roomNumber).map(r => (
-                <option key={r.id} value={r.number}>{r.number} — {r.type} · {formatCurrency(r.price)}</option>
-              ))}
+            <select className="input" value={draft.roomNumber} onChange={e=>setDraft({...draft,roomNumber:e.target.value})}>
+              {data.rooms.map(r => <option key={r.id} value={r.number}>{r.number} — {r.type}</option>)}
             </select>
           </Field>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
-            <Field label="Arrivée">
-              <input type="date" className="input" value={draft.checkin} onChange={e => setDraft({...draft, checkin:e.target.value})} />
-            </Field>
-            <Field label="Départ">
-              <input type="date" className="input" value={draft.checkout} onChange={e => setDraft({...draft, checkout:e.target.value})} />
-            </Field>
+            <Field label="Arrivée"><input type="date" className="input" value={draft.checkin} onChange={e=>setDraft({...draft,checkin:e.target.value})} /></Field>
+            <Field label="Départ"><input type="date" className="input" value={draft.checkout} onChange={e=>setDraft({...draft,checkout:e.target.value})} /></Field>
           </div>
-          <Field label="Notes (optionnel)">
-            <input className="input" value={draft.notes} onChange={e => setDraft({...draft, notes:e.target.value})} placeholder="Demande spéciale, heure d'arrivée…" />
-          </Field>
-          <button onClick={createReservation} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px", marginTop:"8px" }}>
-            <I.CalendarCheck size={16} /> Créer la réservation
-          </button>
+          <Field label="Notes (optionnel)"><input className="input" value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} /></Field>
+          <button onClick={createReservation} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}><I.CheckCircle2 size={16}/> Créer la réservation</button>
         </Modal>
       )}
     </div>
@@ -839,121 +658,282 @@ function ReservationsView({ data, persist, role, showToast }) {
 }
 
 function StockView({ data, persist, role, showToast }) {
-  const [modal, setModal] = React.useState(null);
-  const [draft, setDraft] = React.useState({ name:"", qty:0, unit:"pcs", threshold:5 });
+  const [cat, setCat] = useState("boisson");
+  const [modal, setModal] = useState(null); // {mode:'add'|'edit', item}
+  const [moveModal, setMoveModal] = useState(null); // {item, type}
+  const [draft, setDraft] = useState({ name:"", qty:0, unit:"pcs", threshold:5 });
+  const [moveQty, setMoveQty] = useState(1);
+  const canManage = role === "manager";
+  const listKey = cat === "boisson" ? "stockBoisson" : "stockNourriture";
+  const list = data[listKey];
 
-  React.useEffect(() => {
-    if (modal?.mode === "edit") setDraft(modal.item);
-    if (modal?.mode === "add") setDraft({ name:"", qty:0, unit:"pcs", threshold:5 });
+  useEffect(() => {
+    if (modal?.mode==="edit") setDraft(modal.item);
+    if (modal?.mode==="add") setDraft({ name:"", qty:0, unit:"pcs", threshold:5 });
   }, [modal]);
+  useEffect(() => { setMoveQty(1); }, [moveModal]);
 
   const save = async () => {
     if (!draft.name.trim()) { showToast("Le nom de l'article est requis.", "error"); return; }
     const clean = { ...draft, qty:Number(draft.qty), threshold:Number(draft.threshold) };
-    let stock;
-    if (modal.mode === "add") stock = [...data.stock, { ...clean, id:uid() }];
-    else stock = data.stock.map(s => s.id === modal.item.id ? clean : s);
-    await persist({ ...data, stock });
-    showToast(modal.mode === "add" ? "Article ajouté." : "Article modifié.");
+    let list2;
+    if (modal.mode==="add") list2 = [...list, { ...clean, id:uid() }];
+    else list2 = list.map(s => s.id===modal.item.id ? clean : s);
+    await persist({ ...data, [listKey]: list2 });
+    showToast("Stock mis à jour.");
     setModal(null);
   };
+  const remove = async (item) => { await persist({ ...data, [listKey]: list.filter(s=>s.id!==item.id) }); showToast("Article supprimé."); };
 
-  const remove = async (item) => {
-    await persist({ ...data, stock: data.stock.filter(s => s.id !== item.id) });
-    showToast("Article supprimé.");
+  const doMove = async () => {
+    const qty = Number(moveQty);
+    if (!qty || qty <= 0) { showToast("Quantité invalide.", "error"); return; }
+    const item = moveModal.item, type = moveModal.type;
+    if (type === "sortie" && qty > item.qty) { showToast(`Stock insuffisant (${item.qty} ${item.unit} disponible).`, "error"); return; }
+    const newQty = type === "entree" ? item.qty + qty : item.qty - qty;
+    const list2 = list.map(s => s.id===item.id ? { ...s, qty:newQty } : s);
+    const movement = { id:uid(), category:cat, itemId:item.id, itemName:item.name, type, qty, day:data.currentDay, time:new Date().toISOString() };
+    await persist({ ...data, [listKey]: list2, movements:[...data.movements, movement] });
+    showToast(type==="entree" ? `Entrée enregistrée : +${qty} ${item.unit} de ${item.name}.` : `Sortie enregistrée : -${qty} ${item.unit} de ${item.name}.`);
+    setMoveModal(null);
   };
 
-  const adjust = async (item, delta) => {
-    await persist({ ...data, stock: data.stock.map(s => s.id === item.id ? { ...s, qty:Math.max(0, s.qty+delta) } : s) });
-  };
+  const todaysMoves = data.movements.filter(m => m.day === data.currentDay && m.category === cat).slice().reverse();
 
   return (
-    <div className="anim-fade" style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+    <div className="anim-in" style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
-          <div style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:TOKENS.ink }}>Stocks</div>
-          <div style={{ fontSize:"13px", color:TOKENS.slate, marginTop:"4px" }}>{data.stock.length} article{data.stock.length!==1?'s':''}</div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:TOKENS.ink }}>Stock</div>
+          <div style={{ fontSize:"13px", color:TOKENS.slate, marginTop:"4px" }}>Boissons et nourriture, avec suivi des entrées et sorties</div>
         </div>
-        <button onClick={() => setModal({ mode:"add" })} className="btn btn-primary">
-          <I.Plus size={16} /> Ajouter un article
-        </button>
+        {canManage && <button onClick={()=>setModal({mode:"add"})} className="btn btn-primary"><I.Plus size={16}/> Ajouter un article</button>}
       </div>
 
-      <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
-        {data.stock.map((s, i) => {
-          const low = s.qty <= s.threshold;
-          const pct = s.threshold > 0 ? Math.min(100, Math.round((s.qty / s.threshold) * 100)) : 100;
-          return (
-            <div key={s.id} className="card anim-in" style={{
-              padding:"14px 18px", display:"flex", alignItems:"center", gap:"16px",
-              animationDelay:`${i*0.04}s`,
-              borderColor: low ? TOKENS.brick : TOKENS.line,
-              borderWidth: low ? "1.5px" : "1px",
-            }}>
-              {/* Icon */}
-              <div style={{
-                width:"36px", height:"36px", borderRadius:"10px",
-                background: low ? "rgba(166,72,59,0.1)" : "rgba(91,107,112,0.08)",
-                display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-              }}>
-                <I.Package size={16} style={{ color: low ? TOKENS.brick : TOKENS.slate }} />
-              </div>
+      <div style={{ display:"flex", gap:"8px" }}>
+        {Object.entries(STOCK_CATS).map(([k,v]) => (
+          <button key={k} className={"subtab" + (cat===k ? " active" : "")} onClick={()=>setCat(k)}>
+            <span style={{ display:"inline-flex", alignItems:"center", gap:"6px" }}>{React.createElement(v.icon, {}, null) || null}{v.label}</span>
+          </button>
+        ))}
+      </div>
 
-              {/* Info */}
+      <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+        {list.map(s => {
+          const st = stockStatus(s);
+          const pct = s.threshold > 0 ? (s.qty / (s.threshold*2)) * 100 : 100;
+          return (
+            <div key={s.id} className="card" style={{ padding:"14px 18px", display:"flex", alignItems:"center", gap:"14px" }}>
+              <div style={{ width:"36px", height:"36px", borderRadius:"9px", background: st.level>0 ? "rgba(166,72,59,0.1)" : "rgba(47,111,99,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <I.Package size={16} style={{ color: st.level>0 ? TOKENS.brick : TOKENS.teal }} />
+              </div>
               <div style={{ flex:1 }}>
-                <div style={{ fontWeight:600, fontSize:"14px", color:TOKENS.ink }}>{s.name}</div>
+                <div style={{ fontWeight:600, fontSize:"14px" }}>{s.name}</div>
                 <div style={{ display:"flex", alignItems:"center", gap:"8px", marginTop:"4px" }}>
-                  {/* Mini bar */}
                   <div style={{ flex:1, maxWidth:"180px", height:"6px", borderRadius:"3px", background:TOKENS.line, overflow:"hidden" }}>
-                    <div style={{ width:`${Math.min(100, pct)}%`, height:"100%", borderRadius:"3px",
-                      background: low ? `linear-gradient(90deg, ${TOKENS.brick}, ${TOKENS.brick}99)` : TOKENS.teal,
-                      transition:"width 0.4s ease" }} />
+                    <div style={{ width:`${Math.max(0,Math.min(100,pct))}%`, height:"100%", borderRadius:"3px", background: st.level>0 ? TOKENS.brick : TOKENS.teal }} />
                   </div>
-                  <span style={{ fontSize:"12px", fontWeight:600, color: low ? TOKENS.brick : TOKENS.slate }}>
-                    {s.qty} / {s.threshold} {s.unit}
-                  </span>
+                  <span className="tag" style={{ background:st.color, color:"white", fontSize:"10px" }}>{st.label}</span>
+                  <span style={{ fontSize:"12px", color:TOKENS.slate }}>{s.qty} / seuil {s.threshold} {s.unit}</span>
                 </div>
               </div>
-
-              {/* Controls */}
-              <div style={{ display:"flex", alignItems:"center", gap:"4px", flexShrink:0 }}>
-                <button onClick={() => adjust(s, -1)} className="btn-ghost" style={{ width:"30px", height:"30px", padding:0, borderRadius:"8px", fontSize:"16px", fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
-                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontWeight:600, fontSize:"16px", minWidth:"28px", textAlign:"center" }}>{s.qty}</span>
-                <button onClick={() => adjust(s, 1)} className="btn-ghost" style={{ width:"30px", height:"30px", padding:0, borderRadius:"8px", fontSize:"16px", fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
-                {role === "admin" && (
-                  <>
-                    <button onClick={() => setModal({ mode:"edit", item:s })} className="btn-ghost" style={{ width:"30px", height:"30px", padding:0, borderRadius:"8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <I.Pencil size={13} style={{ color:TOKENS.slate }} />
-                    </button>
-                    <button onClick={() => remove(s)} className="btn-ghost" style={{ width:"30px", height:"30px", padding:0, borderRadius:"8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <I.Trash2 size={13} style={{ color:TOKENS.brick }} />
-                    </button>
-                  </>
-                )}
+              <div style={{ display:"flex", alignItems:"center", gap:"6px", flexShrink:0 }}>
+                <button onClick={()=>setMoveModal({item:s,type:"entree"})} className="btn btn-success" style={{ padding:"6px 10px", fontSize:"12px" }}><I.ArrowDown size={13}/> Entrée</button>
+                <button onClick={()=>setMoveModal({item:s,type:"sortie"})} className="btn btn-danger" style={{ padding:"6px 10px", fontSize:"12px" }}><I.ArrowUp size={13}/> Sortie</button>
+                {canManage && (<>
+                  <button onClick={()=>setModal({mode:"edit",item:s})} className="btn-ghost" style={{ width:"30px", height:"30px", padding:0, borderRadius:"8px", display:"flex", alignItems:"center", justifyContent:"center" }}><I.Pencil size={13} style={{color:TOKENS.slate}}/></button>
+                  <button onClick={()=>remove(s)} className="btn-ghost" style={{ width:"30px", height:"30px", padding:0, borderRadius:"8px", display:"flex", alignItems:"center", justifyContent:"center" }}><I.Trash2 size={13} style={{color:TOKENS.brick}}/></button>
+                </>)}
               </div>
             </div>
           );
         })}
+        {list.length===0 && <div style={{ fontSize:"14px", color:TOKENS.slate }}>Aucun article dans cette catégorie.</div>}
+      </div>
+
+      <div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"16px", fontWeight:600, color:TOKENS.ink, marginBottom:"10px" }}>Mouvements du jour — {STOCK_CATS[cat].label}</div>
+        {todaysMoves.length===0 ? (
+          <div style={{ fontSize:"13px", color:TOKENS.slate }}>Aucun mouvement enregistré aujourd'hui.</div>
+        ) : (
+          <Table headers={["Article","Type","Quantité","Heure"]} rows={todaysMoves.map(m => ({
+            id:m.id, cells:[
+              <span>{m.itemName}</span>,
+              <span className="tag" style={{ background: m.type==="entree"?TOKENS.teal:TOKENS.brick, color:"white", fontSize:"11px" }}>{m.type==="entree"?"Entrée":"Sortie"}</span>,
+              <span style={{ fontFamily:"'IBM Plex Mono',monospace" }}>{m.qty}</span>,
+              <span style={{ fontSize:"12px", color:TOKENS.slate }}>{new Date(m.time).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>,
+            ]
+          }))} />
+        )}
       </div>
 
       {modal && (
-        <Modal title={modal.mode === "add" ? "Nouvel article" : "Modifier l'article"} onClose={() => setModal(null)}>
-          <Field label="Nom de l'article">
-            <input className="input" value={draft.name} onChange={e => setDraft({...draft, name:e.target.value})} placeholder="Ex: Gel douche" />
-          </Field>
+        <Modal title={modal.mode==="add"?"Nouvel article":"Modifier l'article"} onClose={()=>setModal(null)}>
+          <Field label="Nom de l'article"><input className="input" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} /></Field>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
-            <Field label="Quantité">
-              <input type="number" className="input" value={draft.qty} onChange={e => setDraft({...draft, qty:e.target.value})} />
-            </Field>
-            <Field label="Unité">
-              <input className="input" value={draft.unit} onChange={e => setDraft({...draft, unit:e.target.value})} placeholder="pcs, ml, kg…" />
-            </Field>
+            <Field label="Quantité"><input type="number" className="input" value={draft.qty} onChange={e=>setDraft({...draft,qty:e.target.value})} /></Field>
+            <Field label="Unité"><input className="input" value={draft.unit} onChange={e=>setDraft({...draft,unit:e.target.value})} placeholder="pcs, kg, casiers…" /></Field>
           </div>
-          <Field label="Seuil d'alerte">
-            <input type="number" className="input" value={draft.threshold} onChange={e => setDraft({...draft, threshold:e.target.value})} />
+          <Field label="Seuil d'alerte"><input type="number" className="input" value={draft.threshold} onChange={e=>setDraft({...draft,threshold:e.target.value})} /></Field>
+          <button onClick={save} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}><I.CheckCircle2 size={16}/> Enregistrer</button>
+        </Modal>
+      )}
+
+      {moveModal && (
+        <Modal title={(moveModal.type==="entree"?"Entrée — ":"Sortie — ")+moveModal.item.name} onClose={()=>setMoveModal(null)}>
+          <Field label={`Quantité (${moveModal.item.unit}) — disponible : ${moveModal.item.qty}`}>
+            <input type="number" min="1" className="input" value={moveQty} onChange={e=>setMoveQty(e.target.value)} autoFocus />
           </Field>
-          <button onClick={save} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}>
-            <I.CheckCircle2 size={16} /> Enregistrer
+          <button onClick={doMove} className={"btn " + (moveModal.type==="entree"?"btn-success":"btn-danger")} style={{ width:"100%", justifyContent:"center", padding:"12px" }}>
+            {moveModal.type==="entree" ? <I.ArrowDown size={16}/> : <I.ArrowUp size={16}/>} Confirmer la {moveModal.type==="entree"?"entrée":"sortie"}
+          </button>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function CumulsView({ data }) {
+  const [period, setPeriod] = useState(7);
+  const days = data.closedDays.slice(-period);
+  const sum = (key) => days.reduce((s,d)=>s+Number(d[key]||0),0);
+  const avgOcc = days.length ? Math.round(days.reduce((s,d)=>s+d.occupancyRate,0)/days.length) : 0;
+
+  return (
+    <div className="anim-in" style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
+      <div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:TOKENS.ink }}>Cumuls</div>
+        <div style={{ fontSize:"13px", color:TOKENS.slate, marginTop:"4px" }}>Statistiques cumulées sur les journées clôturées</div>
+      </div>
+
+      <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+        {PERIODS.map(p => (
+          <button key={p.n} className={"subtab" + (period===p.n ? " active" : "")} onClick={()=>setPeriod(p.n)}>
+            {p.label} <span style={{ opacity:0.7, fontWeight:400 }}>({p.sub})</span>
+          </button>
+        ))}
+      </div>
+
+      {days.length === 0 ? (
+        <div className="card" style={{ padding:"24px", textAlign:"center", color:TOKENS.slate, fontSize:"14px" }}>
+          Aucune journée clôturée pour l'instant. Les cumuls apparaîtront après la première clôture.
+        </div>
+      ) : (
+        <>
+          {days.length < period && (
+            <div style={{ fontSize:"12px", color:TOKENS.amber, background:"rgba(192,138,62,0.1)", padding:"8px 14px", borderRadius:"8px", display:"inline-block" }}>
+              Seulement {days.length} journée{days.length!==1?'s':''} clôturée{days.length!==1?'s':''} disponible{days.length!==1?'s':''} sur les {period} demandées.
+            </div>
+          )}
+          <div className="stats-grid">
+            <StatCard label="Revenu cumulé" value={formatCurrency(sum("revenue"))} sub={`sur ${days.length} jour${days.length!==1?'s':''}`} color={TOKENS.brass} icon={I.TrendingUp} />
+            <StatCard label="Taux d'occupation moyen" value={avgOcc+"%"} color={TOKENS.teal} icon={I.BedDouble} />
+            <StatCard label="Arrivées / Départs" value={`${sum("arrivals")} / ${sum("departures")}`} color={TOKENS.slate} icon={I.CalendarCheck} />
+            <StatCard label="Alertes stock cumulées" value={sum("lowStockCount")} color={TOKENS.brick} icon={I.AlertTriangle} />
+          </div>
+          <div className="stats-grid">
+            <StatCard label="Boissons — Entrées" value={sum("boissonEntrees")} color={TOKENS.teal} icon={I.Wine} />
+            <StatCard label="Boissons — Sorties" value={sum("boissonSorties")} color={TOKENS.brick} icon={I.Wine} />
+            <StatCard label="Nourriture — Entrées" value={sum("nourritureEntrees")} color={TOKENS.teal} icon={I.Utensils} />
+            <StatCard label="Nourriture — Sorties" value={sum("nourritureSorties")} color={TOKENS.brick} icon={I.Utensils} />
+          </div>
+
+          <div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:"16px", fontWeight:600, color:TOKENS.ink, marginBottom:"10px" }}>Détail par journée</div>
+            <Table headers={["Date","Occupation","Revenu","Arr. / Dép.","Boissons E/S","Nourriture E/S"]} rows={days.slice().reverse().map(d => ({
+              id:d.day, cells:[
+                <span style={{ fontWeight:500 }}>{formatDate(d.day)}</span>,
+                <span>{d.occupancyRate}%</span>,
+                <span style={{ fontWeight:600, color:TOKENS.brass }}>{formatCurrency(d.revenue)}</span>,
+                <span>{d.arrivals} / {d.departures}</span>,
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"12px" }}>{d.boissonEntrees} / {d.boissonSorties}</span>,
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"12px" }}>{d.nourritureEntrees} / {d.nourritureSorties}</span>,
+              ]
+            }))} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ClotureView({ data, persist, showToast }) {
+  const [confirming, setConfirming] = useState(false);
+  const snap = daySnapshot(data, data.currentDay);
+  const dueClosure = isPastBoundary(data.currentDay, data.settings.dayBoundary);
+
+  const closeDay = async () => {
+    const closedDays = [...data.closedDays, { ...snap, closedAt: new Date().toISOString() }];
+    const nextDay = addDays(data.currentDay, 1);
+    await persist({ ...data, closedDays, currentDay: nextDay });
+    showToast(`Journée du ${formatDate(snap.day)} clôturée. Nouvelle journée : ${formatDate(nextDay)}.`);
+    setConfirming(false);
+  };
+
+  const setBoundary = async (val) => { await persist({ ...data, settings:{ ...data.settings, dayBoundary:val } }); };
+
+  return (
+    <div className="anim-in" style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
+      <div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:TOKENS.ink }}>Clôture du jour</div>
+        <div style={{ fontSize:"13px", color:TOKENS.slate, marginTop:"4px" }}>Journée en cours : {formatDateLong(data.currentDay)}</div>
+      </div>
+
+      {dueClosure && (
+        <div style={{ display:"flex", alignItems:"center", gap:"8px", fontSize:"13px", padding:"10px 16px", borderRadius:"10px", background:"rgba(192,138,62,0.1)", color:TOKENS.amber }}>
+          <I.AlertTriangle size={15}/> Le seuil de bascule ({data.settings.dayBoundary==="midnight"?"minuit":"midi"}) est dépassé — pensez à clôturer.
+        </div>
+      )}
+
+      <div className="card" style={{ padding:"20px" }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"16px", fontWeight:600, marginBottom:"14px" }}>Aperçu avant clôture</div>
+        <div className="stats-grid">
+          <StatCard label="Occupation" value={snap.occupancyRate+"%"} sub={`${snap.occupied}/${snap.roomsTotal} chambres`} color={TOKENS.teal} icon={I.BedDouble} />
+          <StatCard label="Revenu estimé" value={formatCurrency(snap.revenue)} color={TOKENS.brass} icon={I.TrendingUp} />
+          <StatCard label="Arrivées / Départs" value={`${snap.arrivals} / ${snap.departures}`} color={TOKENS.slate} icon={I.CalendarCheck} />
+          <StatCard label="Alertes stock" value={snap.lowStockCount} color={TOKENS.brick} icon={I.AlertTriangle} />
+        </div>
+        <button onClick={()=>setConfirming(true)} className="btn btn-primary" style={{ marginTop:"18px", padding:"12px 20px" }}>
+          <I.Lock size={16}/> Clôturer la journée et passer au jour suivant
+        </button>
+      </div>
+
+      <div className="card" style={{ padding:"20px" }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"16px", fontWeight:600, marginBottom:"14px" }}>Paramètre de bascule</div>
+        <div style={{ fontSize:"13px", color:TOKENS.slate, marginBottom:"12px" }}>Détermine à quelle heure la journée suivante est considérée comme "due".</div>
+        <div style={{ display:"flex", gap:"10px" }}>
+          <button onClick={()=>setBoundary("midnight")} className={"subtab" + (data.settings.dayBoundary==="midnight" ? " active" : "")}><I.Moon size={14}/> Minuit</button>
+          <button onClick={()=>setBoundary("noon")} className={"subtab" + (data.settings.dayBoundary==="noon" ? " active" : "")}><I.Sun size={14}/> Midi</button>
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"16px", fontWeight:600, color:TOKENS.ink, marginBottom:"10px", display:"flex", alignItems:"center", gap:"8px" }}>
+          <I.History size={16}/> Historique des clôtures
+        </div>
+        {data.closedDays.length===0 ? (
+          <div style={{ fontSize:"13px", color:TOKENS.slate }}>Aucune journée clôturée pour l'instant.</div>
+        ) : (
+          <Table headers={["Date","Occupation","Revenu","Arr. / Dép.","Alertes stock"]} rows={data.closedDays.slice().reverse().map(d => ({
+            id:d.day, cells:[
+              <span style={{ fontWeight:500 }}>{formatDate(d.day)}</span>,
+              <span>{d.occupancyRate}%</span>,
+              <span style={{ fontWeight:600, color:TOKENS.brass }}>{formatCurrency(d.revenue)}</span>,
+              <span>{d.arrivals} / {d.departures}</span>,
+              <span className="tag" style={{ background: d.lowStockCount>0?TOKENS.brick:TOKENS.teal, color:"white", fontSize:"11px" }}>{d.lowStockCount}</span>,
+            ]
+          }))} />
+        )}
+      </div>
+
+      {confirming && (
+        <Modal title="Confirmer la clôture" onClose={()=>setConfirming(false)}>
+          <div style={{ fontSize:"14px", color:TOKENS.ink, lineHeight:1.6, marginBottom:"18px" }}>
+            La journée du <strong>{formatDate(data.currentDay)}</strong> sera archivée avec les statistiques ci-dessus,
+            et la nouvelle journée d'exploitation sera le <strong>{formatDate(addDays(data.currentDay,1))}</strong>.
+          </div>
+          <button onClick={closeDay} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}>
+            <I.CheckCircle2 size={16}/> Confirmer la clôture
           </button>
         </Modal>
       )}
@@ -962,191 +942,91 @@ function StockView({ data, persist, role, showToast }) {
 }
 
 function UsersView({ data, persist, currentUser, showToast }) {
-  const [modal, setModal] = React.useState(false);
-  const [draft, setDraft] = React.useState({ username:"", password:"", role:"reception", name:"" });
+  const [modal, setModal] = useState(false);
+  const [draft, setDraft] = useState({ username:"", password:"", role:"reception", name:"" });
 
   const create = async () => {
-    if (!draft.username.trim() || !draft.password.trim() || !draft.name.trim()) {
-      showToast("Tous les champs sont requis.", "error"); return;
-    }
-    if (data.users.some(u => u.username.toLowerCase() === draft.username.toLowerCase())) {
-      showToast("Cet identifiant existe déjà.", "error"); return;
-    }
+    if (!draft.username.trim() || !draft.password.trim() || !draft.name.trim()) { showToast("Tous les champs sont requis.", "error"); return; }
+    if (data.users.some(u => u.username.toLowerCase()===draft.username.toLowerCase())) { showToast("Cet identifiant existe déjà.", "error"); return; }
     await persist({ ...data, users:[...data.users, draft] });
     showToast("Utilisateur créé.");
     setModal(false);
     setDraft({ username:"", password:"", role:"reception", name:"" });
   };
-
   const remove = async (u) => {
     if (u.username === currentUser.username) { showToast("Vous ne pouvez pas supprimer votre propre compte.", "error"); return; }
-    await persist({ ...data, users: data.users.filter(x => x.username !== u.username) });
+    await persist({ ...data, users: data.users.filter(x=>x.username!==u.username) });
     showToast("Utilisateur supprimé.");
   };
 
   return (
-    <div className="anim-fade" style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+    <div className="anim-in" style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:"24px", fontWeight:600, color:TOKENS.ink }}>Utilisateurs</div>
           <div style={{ fontSize:"13px", color:TOKENS.slate, marginTop:"4px" }}>{data.users.length} compte{data.users.length!==1?'s':''}</div>
         </div>
-        <button onClick={() => setModal(true)} className="btn btn-primary">
-          <I.Plus size={16} /> Ajouter un utilisateur
-        </button>
+        <button onClick={()=>setModal(true)} className="btn btn-primary"><I.Plus size={16}/> Ajouter un utilisateur</button>
       </div>
-
-      <Table
-        headers={["Nom", "Identifiant", "Rôle", "Actions"]}
-        rows={data.users.map(u => ({
-          id: u.username,
-          cells: [
-            <span style={{ fontWeight:500 }}>{u.name}</span>,
-            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"13px" }}>{u.username}</span>,
-            <span className="tag" style={{ background:TOKENS.paperDim, color:TOKENS.ink, fontSize:"12px" }}>{ROLE_LABEL[u.role]}</span>,
-            <button onClick={() => remove(u)} className="btn-ghost" style={{ width:"32px", height:"32px", padding:0, borderRadius:"8px", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
-              <I.Trash2 size={14} style={{ color:TOKENS.brick }} />
-            </button>,
-          ]
-        }))}
-      />
-
+      <Table headers={["Nom","Identifiant","Rôle","Actions"]} rows={data.users.map(u => ({
+        id:u.username, cells:[
+          <span style={{ fontWeight:500 }}>{u.name}</span>,
+          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"13px" }}>{u.username}</span>,
+          <span className="tag" style={{ background:TOKENS.paperDim, color:TOKENS.ink }}>{ROLE_LABEL[u.role]}</span>,
+          <button onClick={()=>remove(u)} className="btn-ghost" style={{ width:"32px", height:"32px", padding:0, borderRadius:"8px", display:"inline-flex", alignItems:"center", justifyContent:"center" }}><I.Trash2 size={14} style={{color:TOKENS.brick}}/></button>,
+        ]
+      }))} />
       {modal && (
-        <Modal title="Nouvel utilisateur" onClose={() => setModal(false)}>
-          <Field label="Nom complet">
-            <input className="input" value={draft.name} onChange={e => setDraft({...draft, name:e.target.value})} placeholder="Ex: Jean Kouamé" />
-          </Field>
-          <Field label="Identifiant">
-            <input className="input" value={draft.username} onChange={e => setDraft({...draft, username:e.target.value})} placeholder="Ex: jean.k" />
-          </Field>
-          <Field label="Mot de passe">
-            <input type="password" className="input" value={draft.password} onChange={e => setDraft({...draft, password:e.target.value})} placeholder="Minimum 6 caractères" />
-          </Field>
+        <Modal title="Nouvel utilisateur" onClose={()=>setModal(false)}>
+          <Field label="Nom complet"><input className="input" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="Ex: Jean Kouamé" /></Field>
+          <Field label="Identifiant"><input className="input" value={draft.username} onChange={e=>setDraft({...draft,username:e.target.value})} placeholder="Ex: jean.k" /></Field>
+          <Field label="Mot de passe"><input type="password" className="input" value={draft.password} onChange={e=>setDraft({...draft,password:e.target.value})} placeholder="Minimum 6 caractères" /></Field>
           <Field label="Rôle">
-            <select className="input" value={draft.role} onChange={e => setDraft({...draft, role:e.target.value})}>
-              <option value="admin">Administrateur</option>
-              <option value="reception">Réception</option>
-              <option value="stock">Gestion stock</option>
+            <select className="input" value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})}>
+              <option value="manager">Manager</option>
+              <option value="reception">Réceptionniste</option>
             </select>
           </Field>
-          <button onClick={create} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}>
-            <I.Users size={16} /> Créer l'utilisateur
-          </button>
+          <button onClick={create} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}><I.Users size={16}/> Créer l'utilisateur</button>
         </Modal>
       )}
     </div>
   );
 }
 
-// === LICENSE SYSTEM (obfuscated) ===
-// Cette partie protège le travail du développeur original.
-// L'activation nécessite une clé connue uniquement de l'auteur.
-(()=>{
-  // Le nom du badge qui s'affiche en version d'essai
-  self.__VB = {
-    _k: function(){ return atob('VklMTEEtMjAyNi1BR0JBTQ=='); }, // VILLA-2026-AGBAM
-    check: function(){
-      try {
-        var a = localStorage.getItem('_vb_lic');
-        if (!a) return false;
-        var b = a.split('').map(function(c,i){
-          return String.fromCharCode(c.charCodeAt(0) ^ [5,9,3,7,11,13,17,19][i%8]);
-        }).join('');
-        return b.indexOf('VB') === 0 && b.length > 12;
-      } catch(e){ return false; }
-    },
-    activate: function(key){
-      try {
-        if (key === this._k()) {
-          var d = new Date();
-          var sig = 'VB' + String(d.getFullYear()).slice(-2) + String(d.getMonth()+1).padStart(2,'0');
-          var enc = sig.split('').map(function(c,i){
-            return String.fromCharCode(c.charCodeAt(0) ^ [5,9,3,7,11,13,17,19][i%8]);
-          }).join('');
-          localStorage.setItem('_vb_lic', enc);
-          return true;
-        }
-        return false;
-      } catch(e){ return false; }
-    },
-    deactivate: function(){
-      try { localStorage.removeItem('_vb_lic'); return true; } catch(e){ return false; }
-    }
-  };
-})();
-// ================================
-
-// ---- Activation Modal ----
-function ActivationModal({ onClose, onActivate }) {
-  const [code, setCode] = React.useState("");
-  const [error, setError] = React.useState("");
-  const submit = () => {
-    if (code.trim()) {
-      if (self.__VB.activate(code.trim())) {
-        onActivate();
-        onClose();
-      } else {
-        setError("Code d'activation invalide.");
-      }
-    }
-  };
-  return (
-    <div onClick={onClose} style={{ position:"fixed", inset:0, display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, background:"rgba(22,36,43,0.45)", backdropFilter:"blur(4px)", padding:"20px" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:"400px", borderRadius:"16px", padding:"32px", background:TOKENS.paper, boxShadow:"0 20px 60px rgba(22,36,43,0.2)", textAlign:"center" }}>
-        <div style={{ fontSize:"48px", marginBottom:"12px" }}>🔑</div>
-        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"22px", fontWeight:600, color:TOKENS.ink, marginBottom:"6px" }}>Activation requise</div>
-        <div style={{ fontSize:"13px", color:TOKENS.slate, lineHeight:1.5, marginBottom:"20px" }}>
-          Cette application est une version d'essai limitée.<br />Saisis le code d'activation fourni par le développeur.
-        </div>
-        <input className="input" value={code} onChange={e => setCode(e.target.value)}
-          placeholder="Entrer le code d'activation"
-          onKeyDown={e => { if(e.key==='Enter') submit(); }}
-          style={{ textAlign:"center", fontSize:"16px", fontFamily:"'IBM Plex Mono',monospace", letterSpacing:"0.15em" }}
-          autoFocus
-        />
-        {error && <div style={{ fontSize:"13px", color:TOKENS.brick, marginTop:"10px" }}>{error}</div>}
-        <button onClick={submit} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px", marginTop:"16px" }}>
-          Activer
-        </button>
-        <div style={{ fontSize:"11px", color:TOKENS.slate, marginTop:"14px", opacity:0.6 }}>
-          Appuie sur Ctrl+Shift+K pour rouvrir cet écran
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---- Main ----
 function HotelManager() {
-  const [data, setData] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const [storageError, setStorageError] = React.useState(false);
-  const [currentUser, setCurrentUser] = React.useState(null);
-  const [view, setView] = React.useState("dashboard");
-  const [toast, setToast] = React.useState(null);
-  const [licActivated, setLicActivated] = React.useState(self.__VB.check());
-  const [showActivation, setShowActivation] = React.useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [storageError, setStorageError] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [view, setView] = useState("dashboard");
+  const [toast, setToast] = useState(null);
 
-  React.useEffect(() => {
-    try {
-      const loaded = loadData();
-      setData(loaded);
-    } catch(e) { setStorageError(true); setData(seedData()); }
-    finally { setLoading(false); }
-    // Keyboard shortcut: Ctrl+Shift+K -> activation dialog
-    const handler = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setShowActivation(true);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const result = await window.storage.get(STORAGE_KEY, true);
+        if (!mounted) return;
+        if (result && result.value) setData(JSON.parse(result.value));
+        else {
+          const seeded = seedData();
+          await window.storage.set(STORAGE_KEY, JSON.stringify(seeded), true);
+          setData(seeded);
+        }
+      } catch (e) {
+        const seeded = seedData();
+        try { await window.storage.set(STORAGE_KEY, JSON.stringify(seeded), true); setData(seeded); }
+        catch (e2) { setStorageError(true); setData(seeded); }
+      } finally { if (mounted) setLoading(false); }
+    })();
+    return () => { mounted = false; };
   }, []);
 
-  const persist = React.useCallback(async (next) => {
+  const persist = useCallback(async (next) => {
     setData(next);
-    try { saveData(next); } catch(e) { setStorageError(true); }
+    try { await window.storage.set(STORAGE_KEY, JSON.stringify(next), true); }
+    catch (e) { setStorageError(true); }
   }, []);
 
   const showToast = (msg, kind="ok") => { setToast({msg,kind}); setTimeout(()=>setToast(null), 2600); };
@@ -1157,56 +1037,29 @@ function HotelManager() {
         <div style={{ width:"32px", height:"32px", borderRadius:"50%", border:`3px solid ${TOKENS.line}`, borderTopColor:TOKENS.brass, animation:"spin 0.8s linear infinite" }}></div>
         <div style={{ fontSize:"14px", color:TOKENS.slate, fontFamily:"'IBM Plex Mono',monospace" }}>Chargement de l'hôtel…</div>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
-  if (!currentUser) return <LoginScreen users={data.users} onLogin={setCurrentUser} storageError={storageError} />;
-
-  // Activation badge on main content
-  const LicBadge = () => !licActivated ? (
-    <div style={{
-      position:"fixed", bottom:"20px", left:"20px", zIndex:50,
-      padding:"8px 14px", borderRadius:"10px", fontSize:"11px", fontWeight:600,
-      background:"rgba(166,72,59,0.12)", color:TOKENS.brick,
-      backdropFilter:"blur(8px)", border:"1px solid rgba(166,72,59,0.2)",
-      display:"flex", alignItems:"center", gap:"6px",
-      userSelect:"none", cursor:"default",
-    }}>
-      🔒 Version Essai
-      <span style={{ opacity:0.5, fontWeight:400 }}>·</span>
-      <span style={{ fontWeight:400, opacity:0.7, cursor:"pointer", textDecoration:"underline dotted" }}
-        onClick={() => setShowActivation(true)}>
-        Activer
-      </span>
-    </div>
-  ) : null;
+  const hotelName = data.settings?.hotelName || "Villa Blanca";
+  if (!currentUser) return <LoginScreen users={data.users} onLogin={setCurrentUser} storageError={storageError} hotelName={hotelName} />;
 
   return (
-    <>
     <div style={{ display:"flex", height:"100%", minHeight:"600px", background:TOKENS.paper, color:TOKENS.ink }}>
-      <Sidebar view={view} setView={setView} role={currentUser.role} currentUser={currentUser}
-        onLogout={() => setCurrentUser(null)} />
+      <Sidebar view={view} setView={setView} role={currentUser.role} currentUser={currentUser} onLogout={()=>setCurrentUser(null)} hotelName={hotelName} />
       <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
-        <TopBar currentUser={currentUser} data={data} />
+        <TopBar data={data} />
         <div style={{ flex:1, overflow:"auto", padding:"24px 28px" }}>
-          {view === "dashboard" && <Dashboard data={data} />}
-          {view === "rooms" && <RoomsView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
-          {view === "reservations" && <ReservationsView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
-          {view === "stock" && <StockView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
-          {view === "users" && currentUser.role === "admin" && <UsersView data={data} persist={persist} currentUser={currentUser} showToast={showToast} />}
+          {view==="dashboard" && <Dashboard data={data} />}
+          {view==="rooms" && <RoomsView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
+          {view==="reservations" && <ReservationsView data={data} persist={persist} showToast={showToast} />}
+          {view==="stock" && <StockView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
+          {view==="cumuls" && <CumulsView data={data} />}
+          {view==="cloture" && currentUser.role==="manager" && <ClotureView data={data} persist={persist} showToast={showToast} />}
+          {view==="users" && currentUser.role==="manager" && <UsersView data={data} persist={persist} currentUser={currentUser} showToast={showToast} />}
         </div>
       </div>
       {toast && <Toast toast={toast} />}
-      <LicBadge />
     </div>
-    {showActivation && (
-      <ActivationModal
-        onClose={() => setShowActivation(false)}
-        onActivate={() => setLicActivated(self.__VB.check())}
-      />
-    )}
-    </>
   );
 }
 
