@@ -2,15 +2,15 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from config import Config
-from models import db
-from routes.auth import auth_bp
-from routes.rooms import rooms_bp
-from routes.reservations import reservations_bp
-from routes.stock import stock_bp
-from routes.users import users_bp
-from routes.data import data_bp
-from seed import seed_demo_data
+from backend.config import Config
+from backend.models import db
+from backend.routes.auth import auth_bp
+from backend.routes.rooms import rooms_bp
+from backend.routes.reservations import reservations_bp
+from backend.routes.stock import stock_bp
+from backend.routes.users import users_bp
+from backend.routes.data import data_bp
+from backend.seed import seed_demo_data
 
 def create_app():
     app = Flask(__name__)

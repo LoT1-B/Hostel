@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from models import db, StockItem, Movement
+from backend.models import db, StockItem, Movement
 
 stock_bp = Blueprint("stock", __name__)
 

@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from datetime import date, datetime
-from models import db, ClosedDay, Room, Reservation, StockItem, Setting
+from backend.models import db, ClosedDay, Room, Reservation, StockItem, Setting
 
 data_bp = Blueprint("data", __name__)
 

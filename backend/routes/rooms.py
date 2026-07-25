@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from models import db, Room
+from backend.models import db, Room
 
 rooms_bp = Blueprint("rooms", __name__)
 

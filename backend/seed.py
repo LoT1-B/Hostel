@@ -1,4 +1,4 @@
-from models import db, User, Room, Reservation, StockItem, Movement, ClosedDay, Setting
+from backend.models import db, User, Room, Reservation, StockItem, Movement, ClosedDay, Setting
 from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash
 
