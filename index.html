@@ -271,8 +271,12 @@ const TOKEN_KEY = 'villablanca:token';
 // ----- API HELPER -----
 const API_BASE = (() => {
   const h = window.location.hostname;
+  // Mode développement local
   if (h === 'localhost' || h === '127.0.0.1' || h === '') return 'http://localhost:5000/api';
-  return '/api'; // même domaine en prod sur Render
+  // Mode production : GitHub Pages → Render
+  if (h.includes('github.io') || h.includes('lot1-b')) return 'https://villablanca-backend.onrender.com/api';
+  // Même domaine (Render front+back ensemble)
+  return '/api';
 })();
 
 let _apiToken = localStorage.getItem(TOKEN_KEY);

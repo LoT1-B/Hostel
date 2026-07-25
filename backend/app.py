@@ -17,7 +17,14 @@ def create_app():
     app.config.from_object(Config)
 
     # Init extensions
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, resources={r"/api/*": {
+        "origins": [
+            "http://localhost:5000",
+            "http://127.0.0.1:5000",
+            "https://lot1-b.github.io",
+            "https://villablanca-backend.onrender.com"
+        ]
+    }})
     db.init_app(app)
     JWTManager(app)
 
