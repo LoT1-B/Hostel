@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import date, datetime
 from backend.models import db, ClosedDay, Room, Reservation, StockItem, Setting
 
@@ -35,24 +35,49 @@ def dashboard():
 @data_bp.route("/api/closed-days", methods=["GET"])
 @jwt_required()
 def get_closed_days():
-    days = ClosedDay.query.order_by(ClosedDay.day.desc()).all()
+    q = ClosedDay.query
+
+    # Filtre par plage de dates
+    start = request.args.get("start_date")
+    end = request.args.get("end_date")
+    if start:
+        q = q.filter(ClosedDay.day >= datetime.strptime(start, "%Y-%m-%d").date())
+    if end:
+        q = q.filter(ClosedDay.day <= datetime.strptime(end, "%Y-%m-%d").date())
+
+    days = q.order_by(ClosedDay.day.desc()).all()
     return jsonify([{
-        "day": d.day.isoformat(), "closedAt": d.closed_at.isoformat(),
+        "day": d.day.isoformat(), "closedAt": d.closed_at.isoformat() if d.closed_at else None,
         "roomsTotal": d.rooms_total, "occupied": d.occupied,
         "occupancyRate": d.occupancy_rate, "revenue": d.revenue,
         "arrivals": d.arrivals, "departures": d.departures,
         "boissonEntrees": d.boisson_entrees, "boissonSorties": d.boisson_sorties,
         "nourritureEntrees": d.nourriture_entrees, "nourritureSorties": d.nourriture_sorties,
         "lowStockCount": d.low_stock_count,
+        "locked": d.locked,
+        "closedBy": d.closed_by,
     } for d in days])
 
 @data_bp.route("/api/closed-days", methods=["POST"])
 @jwt_required()
 def close_day():
-    """Ferme la journée courante et calcule les stats."""
+    """Ferme la journée courante — irréversible."""
+    from flask_jwt_extended import get_jwt_identity
+    from backend.models import User
+
+    user_id = get_jwt_identity()
+    # Récupérer le nom d'utilisateur qui ferme
+    closing_user = User.query.get(user_id)
+    closed_by_username = closing_user.username if closing_user else 'inconnu'
     today = date.today()
-    if ClosedDay.query.filter_by(day=today).first():
-        return jsonify({"msg": "Jour déjà clôturé"}), 409
+
+    existing = ClosedDay.query.filter_by(day=today).first()
+    if existing:
+        if existing.locked:
+            return jsonify({"msg": "Journée déjà clôturée et verrouillée"}), 409
+        # Si non verrouillée, on peut la remplacer (manager seulement)
+        db.session.delete(existing)
+        db.session.commit()
 
     rooms = Room.query.count()
     occupied = Reservation.query.filter(Reservation.status == "checked-in").count()
@@ -64,15 +89,30 @@ def close_day():
         day=today, closed_at=datetime.utcnow(),
         rooms_total=rooms, occupied=occupied,
         occupancy_rate=round((occupied / rooms * 100)) if rooms else 0,
-        revenue=occupied * 20000,  # estimation simplifiée
+        revenue=occupied * 20000,
         arrivals=arrivals, departures=departures,
         boisson_entrees=0, boisson_sorties=0,
         nourriture_entrees=0, nourriture_sorties=0,
         low_stock_count=low_stock,
+        locked=True,                    # ← verrouillé immédiatement
+        closed_by=closed_by_username,
     )
     db.session.add(closed)
     db.session.commit()
     return jsonify({"msg": "Journée clôturée", "day": today.isoformat()}), 201
+
+# ——— ALERTES STOCK ———
+@data_bp.route("/api/stock/alerts", methods=["GET"])
+@jwt_required()
+def stock_alerts():
+    """Retourne les articles en dessous du seuil d'alerte."""
+    items = StockItem.query.filter(StockItem.qty <= StockItem.threshold).all()
+    return jsonify([{
+        "id": i.id, "name": i.name,
+        "qty": i.qty, "unit": i.unit,
+        "threshold": i.threshold,
+        "category": i.category,
+    } for i in items])
 
 # Settings
 @data_bp.route("/api/settings", methods=["GET"])

@@ -252,6 +252,10 @@ const isPastBoundary = (currentDay, boundary) => {
   if (boundary === 'noon') next.setHours(12, 0, 0, 0);
   return new Date() >= next;
 };
+const getLowStockItems = (data) => {
+  const items = [...(data.stockBoisson || []), ...(data.stockNourriture || [])];
+  return items.filter(it => it.qty <= it.threshold);
+};
 const ROLE_LABEL = { manager: 'Manager', reception: 'Réceptionniste' };
 const ROOM_STATUS = {
   available: { label: 'Disponible', color: COLORS.teal },
@@ -392,6 +396,7 @@ function seedData() {
   ];
   const closedDays = [3, 2, 1].map(offset => {
     const day = addDays(today, -offset);
+    const user = users[offset === 1 ? 0 : 1];
     return {
       day, closedAt: day + 'T22:00:00',
       roomsTotal: rooms.length,
@@ -402,6 +407,8 @@ function seedData() {
       boissonEntrees: 0, boissonSorties: 10 + offset,
       nourritureEntrees: 5, nourritureSorties: 6 + offset,
       lowStockCount: offset === 3 ? 1 : 0,
+      locked: true,
+      closedBy: user.username,
     };
   });
   return {
@@ -1567,26 +1574,44 @@ function StatCard({ label, value, sub, color, icon }) {
 }
 
 // ----- CLOTURE VIEW -----
-function ClotureView({ data, persist, showToast }) {
+function ClotureView({ data, persist, showToast, currentUser }) {
   const [confirming, setConfirming] = useState(false);
   const snap = daySnapshot(data, data.currentDay);
   const dueClosure = isPastBoundary(data.currentDay, data.settings.dayBoundary);
+  const todayLocked = data.closedDays.find(d => d.day === data.currentDay)?.locked;
 
   const closeDay = async () => {
-    const closedDays = [...data.closedDays, { ...snap, closedAt: new Date().toISOString() }];
+    const record = {
+      ...snap,
+      closedAt: new Date().toISOString(),
+      locked: true,
+      closedBy: currentUser?.username || 'inconnu',
+    };
+    const closedDays = [...data.closedDays, record];
     const nextDay = addDays(data.currentDay, 1);
     await persist({ ...data, closedDays, currentDay: nextDay });
-    showToast(`Journée du ${formatDate(snap.day)} clôturée. Nouvelle journée : ${formatDate(nextDay)}.`);
+    showToast(
+      `✅ Journée du ${formatDate(snap.day)} clôturée par ${currentUser?.name}.`
+    );
     setConfirming(false);
   };
 
-  const setBoundary = async (val) => { await persist({ ...data, settings: { ...data.settings, dayBoundary: val } }); };
+  const setBoundary = async (val) => {
+    await persist({ ...data, settings: { ...data.settings, dayBoundary: val } });
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div><span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 700 }}>Clôture du jour</span>
+      <div>
+        <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 700 }}>Clôture du jour</span>
         <div style={{ fontSize: '13px', color: COLORS.slate }}>{formatDateLong(data.currentDay)}</div>
       </div>
+
+      {todayLocked && (
+        <div className="glass" style={{ padding: '12px 18px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '10px', color: COLORS.teal, borderColor: COLORS.teal, background: 'rgba(40,160,120,0.08)' }}>
+          <I.Lock size={16} /> Cette journée est déjà clôturée et verrouillée.
+        </div>
+      )}
 
       {dueClosure && (
         <div className="glass" style={{ padding: '12px 18px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '10px', color: '#b8946e', borderColor: '#b8946e' }}>
@@ -1595,16 +1620,21 @@ function ClotureView({ data, persist, showToast }) {
       )}
 
       <div className="glass" style={{ padding: '20px', borderRadius: '24px' }}>
-        <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 600, marginBottom: '14px' }}>Aperçu avant clôture</div>
+        <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 600, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <I.Lock size={16} /> Aperçu avant clôture
+          <span style={{ fontSize: '11px', color: COLORS.brick, fontWeight: 400 }}>— irréversible</span>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: '12px' }}>
           <StatCard label="Occupation" value={snap.occupancyRate + '%'} sub={`${snap.occupied}/${snap.roomsTotal}`} color={COLORS.teal} />
           <StatCard label="Revenu" value={formatCurrency(snap.revenue)} color={COLORS.brass} />
           <StatCard label="Arrivées/Départs" value={`${snap.arrivals}/${snap.departures}`} color={COLORS.slate} />
           <StatCard label="Alertes stock" value={snap.lowStockCount} color={COLORS.brick} />
         </div>
-        <button onClick={() => setConfirming(true)} className="btn btn-primary" style={{ marginTop: '18px', padding: '12px 24px' }}>
-          <I.Lock size={16} /> Clôturer
-        </button>
+        {!todayLocked && (
+          <button onClick={() => setConfirming(true)} className="btn btn-primary" style={{ marginTop: '18px', padding: '12px 24px' }}>
+            <I.Lock size={16} /> Clôturer la journée
+          </button>
+        )}
       </div>
 
       <div className="glass" style={{ padding: '20px', borderRadius: '24px' }}>
@@ -1622,23 +1652,30 @@ function ClotureView({ data, persist, showToast }) {
         {data.closedDays.length === 0 ? (
           <div style={{ fontSize: '13px', color: COLORS.slate }}>Aucune clôture.</div>
         ) : (
-          <Table headers={['Date', 'Occupation', 'Revenu', 'Arr./Dép.', 'Alertes']} rows={data.closedDays.slice().reverse().map(d => ({
+          <Table headers={['Date', 'Occupation', 'Revenu', 'Arr./Dép.', 'Alertes', 'Responsable']} rows={data.closedDays.slice().reverse().map(d => ({
             id: d.day, cells: [
-              <span style={{ fontWeight: 500 }}>{formatDate(d.day)}</span>,
+              <span style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {d.locked && <I.Lock size={11} style={{ color: COLORS.slate }} />}
+                {formatDate(d.day)}
+              </span>,
               <span>{d.occupancyRate}%</span>,
               <span style={{ fontWeight: 600, color: COLORS.brass }}>{formatCurrency(d.revenue)}</span>,
               <span>{d.arrivals} / {d.departures}</span>,
               <span className="tag" style={{ background: d.lowStockCount > 0 ? COLORS.brick : COLORS.teal, color: 'white', fontSize: '10px' }}>{d.lowStockCount}</span>,
+              <span style={{ fontSize: '12px', color: COLORS.slate }}>{d.closedBy || '—'}</span>,
             ]
           }))} />
         )}
       </div>
 
-      {confirming && (
-        <Modal title="Confirmer" onClose={() => setConfirming(false)}>
+      {confirming && !todayLocked && (
+        <Modal title="Confirmer la clôture" onClose={() => setConfirming(false)}>
           <div style={{ fontSize: '14px', lineHeight: 1.6, marginBottom: '18px' }}>
             Clôturer la journée du <strong>{formatDate(data.currentDay)}</strong>.<br />
-            Nouvelle journée : <strong>{formatDate(addDays(data.currentDay, 1))}</strong>.
+            <span style={{ color: COLORS.brick, fontWeight: 600 }}>
+              ⚠ Cette action est irréversible.
+            </span><br /><br />
+            Responsable : <strong>{currentUser?.name}</strong> ({currentUser?.username})
           </div>
           <button onClick={closeDay} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
             <I.CheckCircle2 size={16} /> Confirmer
@@ -1846,6 +1883,8 @@ function HotelManager() {
   }, []);
 
   const showToast = (msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 2600); };
+  const lowStockItems = getLowStockItems(data);
+  const lowStockCount = lowStockItems.length;
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: COLORS.paper }}>
@@ -1870,11 +1909,11 @@ function HotelManager() {
 
   // APPLICATION PRINCIPALE
   const navItems = [
-    { key: 'dashboard', label: 'Tableau de bord', icon: I.LayoutGrid, roles: ['manager', 'reception'] },
+    { key: 'dashboard', label: 'Tableau de bord', icon: I.LayoutGrid, roles: ['manager'] },
     { key: 'rooms', label: 'Chambres', icon: I.BedDouble, roles: ['manager', 'reception'] },
     { key: 'reservations', label: 'Réservations', icon: I.CalendarCheck, roles: ['manager', 'reception'] },
     { key: 'stock', label: 'Stock', icon: I.Package, roles: ['manager', 'reception'] },
-    { key: 'cumuls', label: 'Cumuls', icon: I.ClipboardList, roles: ['manager', 'reception'] },
+    { key: 'cumuls', label: 'Cumuls', icon: I.ClipboardList, roles: ['manager'] },
     { key: 'cloture', label: 'Clôture', icon: I.Lock, roles: ['manager'] },
     { key: 'users', label: 'Utilisateurs', icon: I.Users, roles: ['manager'] },
   ];
@@ -1904,6 +1943,11 @@ function HotelManager() {
                 }}>
                   <IconComp size={18} style={{ color: active ? COLORS.ink : COLORS.slate, opacity: active ? 1 : 0.6 }} />
                   {it.label}
+                  {it.key === 'stock' && lowStockCount > 0 && (
+                    <span style={{ marginLeft: 'auto', background: COLORS.brick, color: 'white', fontSize: '10px', minWidth: '18px', height: '18px', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                      {lowStockCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -1932,13 +1976,23 @@ function HotelManager() {
           </span>
         </div>
 
+        {lowStockCount > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 20px', borderRadius: '16px', background: `rgba(190,60,55,0.08)`, marginBottom: '12px', fontSize: '13px', color: COLORS.brick }}>
+            <I.AlertTriangle size={16} />
+            <span style={{ flex: 1 }}>{lowStockCount} article{lowStockCount > 1 ? 's' : ''} en dessous du seuil d'alerte</span>
+            <button onClick={() => setView('stock')} className="btn-ghost" style={{ fontSize: '12px', color: COLORS.brick, border: `1px solid ${COLORS.brick}40` }}>
+              Voir le stock
+            </button>
+          </div>
+        )}
+
         <div style={{ flex: 1, overflow: 'auto', paddingBottom: '12px' }}>
           {view === 'dashboard' && <Dashboard data={data} />}
           {view === 'rooms' && <RoomsView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
           {view === 'reservations' && <ReservationsView data={data} persist={persist} showToast={showToast} />}
           {view === 'stock' && <StockView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
           {view === 'cumuls' && <CumulsView data={data} />}
-          {view === 'cloture' && currentUser.role === 'manager' && <ClotureView data={data} persist={persist} showToast={showToast} />}
+          {view === 'cloture' && currentUser.role === 'manager' && <ClotureView data={data} persist={persist} showToast={showToast} currentUser={currentUser} />}
           {view === 'users' && currentUser.role === 'manager' && <UsersView data={data} persist={persist} currentUser={currentUser} showToast={showToast} />}
         </div>
       </div>

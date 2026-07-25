@@ -68,6 +68,8 @@ class ClosedDay(db.Model):
     nourriture_entrees = db.Column(db.Float, default=0)
     nourriture_sorties = db.Column(db.Float, default=0)
     low_stock_count = db.Column(db.Integer, default=0)
+    locked = db.Column(db.Boolean, default=False)
+    closed_by = db.Column(db.String(12), db.ForeignKey("users.id"), nullable=True)
 
 class Setting(db.Model):
     __tablename__ = "settings"
