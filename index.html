@@ -12,6 +12,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* ========== STYLES GLOBAUX ==========
+   Reset, typographie (Inter, Fraunces, IBM Plex Mono), scrollbar custom, animations, et classes utilitaires
+   Design system : cartes, boutons, inputs, tags, grilles, etc. */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;width:100%}
 body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
@@ -60,20 +63,28 @@ input:focus,select:focus{outline:2px solid #C08A3E;outline-offset:2px;border-col
 <body>
 <div id="root"></div>
 <script type="text/babel">
+// ========== IMPORT REACT HOOKS ==========
+// Destructuration des hooks React (useState, useEffect, useCallback) utilisés dans tous les composants
 const { useState, useEffect, useCallback } = React;
 
+// ========== PALETTE DE COULEURS (TOKENS) ==========
+// Design system : les couleurs de base utilisées dans toute l'interface — encre, papier, laiton, etc.
 const TOKENS = {
   ink: "#16242B", inkSoft: "#22333B", paper: "#F7F2E9", paperDim: "#EFE7D6",
   brass: "#C08A3E", brassSoft: "#E4C48C", teal: "#2F6F63", brick: "#A6483B",
   amber: "#B8863B", slate: "#5B6B70", line: "#DED3BC",
 };
 
+// ========== ICÔNES (Lucide) ==========
+// Helper pour afficher les icônes SVG de la librairie Lucide dans les composants React
 const Icon = ({ icon, size = 16, style }) =>
   React.createElement("span", {
     dangerouslySetInnerHTML: { __html: icon && icon.toSvg ? icon.toSvg(size) : "" },
     style: { display: "inline-flex", verticalAlign: "middle", ...style },
   });
 
+// ========== MAPPE D'ICÔNES ==========
+// Toutes les icônes utilisées dans l'interface, pré-mappées pour être appelées via <I.NomIcon />
 const I = {
   BedDouble:(s,st)=><Icon icon={lucide.BedDouble} size={s||16} style={st}/>,
   CalendarCheck:(s,st)=><Icon icon={lucide.CalendarCheck} size={s||16} style={st}/>,
@@ -105,6 +116,8 @@ const I = {
   Ban:(s,st)=><Icon icon={lucide.Ban} size={s||16} style={st}/>,
 };
 
+// ========== FONCTIONS UTILITAIRES ==========
+// Générateur d'ID unique, formatage des dates, devises & helpers de manipulation des jours
 const uid = () => Math.random().toString(36).slice(2, 10);
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const formatCurrency = (n) => Number(n||0).toLocaleString() + " FCFA";
@@ -119,6 +132,8 @@ function isPastBoundary(currentDay, boundary) {
   return new Date() >= next;
 }
 
+// ========== CONSTANTES MÉTIER ==========
+// Statuts des rôles, des chambres, catégories de stock, périodes de cumuls, et clé de stockage
 const ROLE_LABEL = { manager:"Manager", reception:"Réceptionniste" };
 const ROOM_STATUS = {
   available: { label:"Disponible", color:TOKENS.teal },
@@ -138,12 +153,16 @@ const PERIODS = [
 
 const STORAGE_KEY = "villablanca:main";
 
+// ========== ÉTAT DES STOCKS ==========
+// Vérifie le niveau de stock d'un article et retourne son statut (OK / Stock bas / Rupture)
 function stockStatus(item) {
   if (item.qty <= 0) return { label:"Rupture", color:TOKENS.brick, level:2 };
   if (item.qty <= item.threshold) return { label:"Stock bas", color:TOKENS.amber, level:1 };
   return { label:"OK", color:TOKENS.teal, level:0 };
 }
 
+// ========== APERÇU JOURNALIER (daySnapshot) ==========
+// Calcule les statistiques du jour : occupation, revenus, arrivées/départs, mouvements de stock
 function daySnapshot(data, day) {
   const rooms = data.rooms;
   const occupied = rooms.filter(r => r.status === "occupied").length;
@@ -169,6 +188,8 @@ function daySnapshot(data, day) {
   };
 }
 
+// ========== DONNÉES DE DÉMONSTRATION (seedData) ==========
+// Génère des données initiales de démo : chambres, réservations, stocks, utilisateurs + historique
 function seedData() {
   const today = todayStr();
   const rooms = [
@@ -220,11 +241,15 @@ function seedData() {
   };
 }
 
+// ========== CHARGEMENT DES DONNÉES (fallback) ==========
+// Charge les données persistées ou initialise les données de démo si aucune sauvegarde
 function loadDataLocalFallback() {
   const s = seedData();
   return s;
 }
 
+// ========== COMPOSANT : Toast ==========
+// Notification temporaire qui apparaît en bas à droite (succès ou erreur)
 function Toast({ toast }) {
   return (
     <div style={{ position:"fixed", bottom:"24px", right:"24px", zIndex:9999, padding:"12px 20px", borderRadius:"12px",
@@ -236,6 +261,8 @@ function Toast({ toast }) {
   );
 }
 
+// ========== COMPOSANT : Écran de connexion (LoginScreen) ==========
+// Formulaire d'authentification — identifiant + mot de passe, avec comptes de démo et gestion d'erreurs
 function LoginScreen({ users, onLogin, storageError, hotelName }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -295,6 +322,8 @@ function LoginScreen({ users, onLogin, storageError, hotelName }) {
   );
 }
 
+// ========== COMPOSANT : Barre latérale (Sidebar) ==========
+// Menu de navigation latérale gauche avec les différentes sections accessibles selon le rôle
 function Sidebar({ view, setView, role, currentUser, onLogout, hotelName }) {
   const items = [
     { key:"dashboard", label:"Tableau de bord", icon:I.LayoutGrid, roles:["manager","reception"] },
@@ -351,6 +380,8 @@ function Sidebar({ view, setView, role, currentUser, onLogout, hotelName }) {
   );
 }
 
+// ========== COMPOSANT : Barre du haut (TopBar) ==========
+// Affiche la date du jour et les alertes (clôture due, stock bas) dans l'en-tête
 function TopBar({ data }) {
   const allStock = [...data.stockBoisson, ...data.stockNourriture];
   const lowStock = allStock.filter(s => stockStatus(s).level > 0).length;
@@ -384,6 +415,8 @@ function TopBar({ data }) {
   );
 }
 
+// ========== COMPOSANT : Carte statistique (StatCard) ==========
+// Carte réutilisable pour afficher une statistique (valeur, label, sous-titre, icône)
 function StatCard({ label, value, sub, color, icon }) {
   const IconComp = icon;
   return (
@@ -398,6 +431,8 @@ function StatCard({ label, value, sub, color, icon }) {
   );
 }
 
+// ========== COMPOSANT : Tableau de bord (Dashboard) ==========
+// Vue d'accueil : statistiques du jour, trousseau des chambres, alertes de stock
 function Dashboard({ data }) {
   const snap = daySnapshot(data, data.currentDay);
   const allStock = [...data.stockBoisson.map(s=>({...s,cat:"boisson"})), ...data.stockNourriture.map(s=>({...s,cat:"nourriture"}))];
@@ -462,6 +497,8 @@ function Dashboard({ data }) {
   );
 }
 
+// ========== COMPOSANT : Fenêtre modale (Modal) ==========
+// Overlay générique avec fond flouté — utilisé pour les formulaires d'ajout/édition — fermeture via Escape
 function Modal({ title, onClose, children }) {
   useEffect(() => { const h=e=>{if(e.key==="Escape")onClose();}; window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); }, [onClose]);
   return (
@@ -482,6 +519,8 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+// ========== COMPOSANT : Champ de formulaire (Field) ==========
+// Wrapper pour les champs de formulaire avec label et contenu
 function Field({ label, children }) {
   return (
     <div style={{ marginBottom:"16px" }}>
@@ -491,6 +530,8 @@ function Field({ label, children }) {
   );
 }
 
+// ========== COMPOSANT : Tableau (Table) ==========
+// Tableau HTML réutilisable avec en-têtes et lignes stylisées
 function Table({ headers, rows }) {
   return (
     <div className="card" style={{ overflow:"hidden", padding:0 }}>
@@ -514,6 +555,8 @@ function Table({ headers, rows }) {
   );
 }
 
+// ========== COMPOSANT : Gestion des chambres (RoomsView) ==========
+// Liste des chambres avec CRUD (ajout/modification/suppression), visible par tous, éditable par le manager
 function RoomsView({ data, persist, role, showToast }) {
   const [modal, setModal] = useState(null);
   const canManage = role === "manager";
@@ -573,6 +616,8 @@ function RoomsView({ data, persist, role, showToast }) {
   );
 }
 
+// ========== STATUTS DES RÉSERVATIONS ==========
+// Mappage des statuts d'une réservation (Réservée, Enregistrée, Terminée, Annulée) avec leurs couleurs
 const RES_STATUS = {
   booked:{label:"Réservée",color:TOKENS.brass},
   "checked-in":{label:"Enregistrée",color:TOKENS.teal},
@@ -580,6 +625,8 @@ const RES_STATUS = {
   cancelled:{label:"Annulée",color:TOKENS.brick},
 };
 
+// ========== COMPOSANT : Réservations (ReservationsView) ==========
+// Gestion des réservations : création, check-in, check-out, annulation, avec liaison aux chambres
 function ReservationsView({ data, persist, showToast }) {
   const [modal, setModal] = useState(false);
   const [draft, setDraft] = useState({ guest:"", roomNumber:data.rooms[0]?.number||"", checkin:data.currentDay, checkout:data.currentDay, notes:"" });
@@ -657,6 +704,8 @@ function ReservationsView({ data, persist, showToast }) {
   );
 }
 
+// ========== COMPOSANT : Gestion des stocks (StockView) ==========
+// Gestion des articles en stock (boissons & nourriture) avec catégories, entrées/sorties, barre de niveau et seuils d'alerte
 function StockView({ data, persist, role, showToast }) {
   const [cat, setCat] = useState("boisson");
   const [modal, setModal] = useState(null); // {mode:'add'|'edit', item}
@@ -793,6 +842,8 @@ function StockView({ data, persist, role, showToast }) {
   );
 }
 
+// ========== COMPOSANT : Cumuls statistiques (CumulsView) ==========
+// Statistiques cumulées sur les journées clôturées — filtrable par période (hebdo, décade, quinzaine, mensuel)
 function CumulsView({ data }) {
   const [period, setPeriod] = useState(7);
   const days = data.closedDays.slice(-period);
@@ -857,6 +908,8 @@ function CumulsView({ data }) {
   );
 }
 
+// ========== COMPOSANT : Clôture du jour (ClotureView) ==========
+// Permet au manager de clôturer la journée en cours, archiver les stats et passer au jour suivant — avec réglage de bascule (minuit/midi)
 function ClotureView({ data, persist, showToast }) {
   const [confirming, setConfirming] = useState(false);
   const snap = daySnapshot(data, data.currentDay);
@@ -941,6 +994,8 @@ function ClotureView({ data, persist, showToast }) {
   );
 }
 
+// ========== COMPOSANT : Gestion des utilisateurs (UsersView) ==========
+// CRUD des comptes utilisateurs (manager/réceptionniste) — réservé au rôle manager, ne peut pas se supprimer soi-même
 function UsersView({ data, persist, currentUser, showToast }) {
   const [modal, setModal] = useState(false);
   const [draft, setDraft] = useState({ username:"", password:"", role:"reception", name:"" });
@@ -994,6 +1049,8 @@ function UsersView({ data, persist, currentUser, showToast }) {
   );
 }
 
+// ========== COMPOSANT PRINCIPAL : HotelManager ==========
+// Point d'entrée de l'application — gère le chargement, l'authentification, la navigation et la persistance des données
 function HotelManager() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1063,6 +1120,8 @@ function HotelManager() {
   );
 }
 
+// ========== RENDU DE L'APPLICATION ==========
+// Monte le composant principal HotelManager dans la balise #root
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<HotelManager />);
 </script>
