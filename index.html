@@ -248,6 +248,7 @@ const I = {
   Calendar: (s, st) => <Icon icon={lucide.Calendar} size={s && s.size || s || 18} style={st} />,
   FileDown: (s, st) => <Icon icon={lucide.FileDown} size={s && s.size || s || 18} style={st} />,
   Settings: (s, st) => <Icon icon={lucide.Settings} size={s && s.size || s || 18} style={st} />,
+  RotateCcw: (s, st) => <Icon icon={lucide.RotateCcw} size={s && s.size || s || 18} style={st} />,
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -1233,6 +1234,7 @@ function StockView({ data, persist, role, showToast }) {
   const [moveModal, setMoveModal] = useState(null);
   const [draft, setDraft] = useState({ name: '', qty: 0, unit: 'pcs', threshold: 5 });
   const [moveQty, setMoveQty] = useState(1);
+  const [undoStack, setUndoStack] = useState([]);
   const canManage = role === 'manager';
   const listKey = cat === 'boisson' ? 'stockBoisson' : 'stockNourriture';
   const list = data[listKey];
@@ -1249,11 +1251,24 @@ function StockView({ data, persist, role, showToast }) {
     let list2;
     if (modal.mode === 'add') list2 = [...list, { ...clean, id: uid() }];
     else list2 = list.map(s => s.id === modal.item.id ? clean : s);
+    setUndoStack(prev => [list, ...prev].slice(0, 10));
     await persist({ ...data, [listKey]: list2 });
     showToast('Stock mis à jour.');
     setModal(null);
   };
-  const remove = async (item) => { await persist({ ...data, [listKey]: list.filter(s => s.id !== item.id) }); showToast('Article supprimé.'); };
+  const remove = async (item) => {
+    setUndoStack(prev => [list, ...prev].slice(0, 10));
+    await persist({ ...data, [listKey]: list.filter(s => s.id !== item.id) });
+    showToast('Article supprimé.');
+  };
+
+  const undo = async () => {
+    if (!undoStack.length) return;
+    const [prev, ...rest] = undoStack;
+    setUndoStack(rest);
+    await persist({ ...data, [listKey]: prev });
+    showToast('Dernière action annulée.');
+  };
 
   const doMove = async () => {
     const qty = Number(moveQty);
@@ -1263,6 +1278,7 @@ function StockView({ data, persist, role, showToast }) {
     const newQty = type === 'entree' ? item.qty + qty : item.qty - qty;
     const list2 = list.map(s => s.id === item.id ? { ...s, qty: newQty } : s);
     const movement = { id: uid(), category: cat, itemId: item.id, itemName: item.name, type, qty, day: data.currentDay, time: new Date().toISOString() };
+    setUndoStack(prev => [list, ...prev].slice(0, 10));
     await persist({ ...data, [listKey]: list2, movements: [...data.movements, movement] });
     showToast(type === 'entree' ? `Entrée : +${qty} ${item.unit} de ${item.name}.` : `Sortie : -${qty} ${item.unit} de ${item.name}.`);
     setMoveModal(null);
@@ -1277,6 +1293,11 @@ function StockView({ data, persist, role, showToast }) {
           <div style={{ fontSize: '13px', color: COLORS.slate }}>Boissons et nourriture</div>
         </div>
         {canManage && <button onClick={() => setModal({ mode: 'add' })} className="btn btn-primary"><I.Plus size={16} /> Ajouter</button>}
+        {undoStack.length > 0 && (
+          <button onClick={undo} className="btn-ghost" style={{ padding: '10px 16px', borderRadius: '14px', color: COLORS.brick, border: `1.5px solid rgba(190,60,55,0.15)`, fontSize: '13px' }}>
+            <I.RotateCcw size={14} /> Annuler
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: '8px' }}>
