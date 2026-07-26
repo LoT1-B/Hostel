@@ -136,6 +136,15 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
     .anim-in { animation: fadeIn 0.3s ease-out both; }
+    .stagger > * { animation: fadeIn 0.3s ease-out both; }
+    .stagger > *:nth-child(1) { animation-delay: 0.03s; }
+    .stagger > *:nth-child(2) { animation-delay: 0.06s; }
+    .stagger > *:nth-child(3) { animation-delay: 0.09s; }
+    .stagger > *:nth-child(4) { animation-delay: 0.12s; }
+    .stagger > *:nth-child(5) { animation-delay: 0.15s; }
+    .stagger > *:nth-child(6) { animation-delay: 0.18s; }
+    @keyframes scaleFade { from { opacity:0; transform:scale(0.97); } to { opacity:1; transform:scale(1); } }
+    .view-enter { animation: scaleFade 0.2s ease-out; }
     @keyframes floatSplash1 {
       0%, 100% { transform: translate(0, 0) scale(1); }
       50% { transform: translate(-30px, 40px) scale(1.1); }
@@ -238,6 +247,7 @@ const I = {
   Ban: (s, st) => <Icon icon={lucide.Ban} size={s || 18} style={st} />,
   Calendar: (s, st) => <Icon icon={lucide.Calendar} size={s && s.size || s || 18} style={st} />,
   FileDown: (s, st) => <Icon icon={lucide.FileDown} size={s && s.size || s || 18} style={st} />,
+  Settings: (s, st) => <Icon icon={lucide.Settings} size={s && s.size || s || 18} style={st} />,
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -1001,7 +1011,7 @@ function Dashboard({ data }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: '16px' }}>
+      <div className="stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: '16px' }}>
         {[
           { label: 'Disponibles', value: data.rooms.length - snap.occupied, sub: `sur ${snap.roomsTotal} chambres`, color: COLORS.teal, icon: I.BedDouble },
           { label: 'Occupées', value: snap.occupied, sub: `${snap.occupancyRate}% du parc`, color: COLORS.brick, icon: I.DoorClosed },
@@ -1739,6 +1749,73 @@ function UsersView({ data, persist, currentUser, showToast }) {
   );
 }
 
+// ----- PARAMETRES -----
+function SettingsView({ data, persist, currentUser, showToast }) {
+  const [draftUser, setDraftUser] = useState({ ...currentUser });
+  const [newPwd, setNewPwd] = useState('');
+  const [newPwd2, setNewPwd2] = useState('');
+  const [newDay, setNewDay] = useState(data.currentDay || todayStr());
+
+  const saveUser = async () => {
+    if (!draftUser.name.trim() || !draftUser.username.trim()) {
+      showToast('Nom et identifiant requis.', 'error'); return;
+    }
+    if (draftUser.username !== currentUser.username &&
+        data.users.some(u => u.username === draftUser.username)) {
+      showToast('Identifiant déjà pris.', 'error'); return;
+    }
+    if (newPwd && newPwd !== newPwd2) {
+      showToast('Les mots de passe ne correspondent pas.', 'error'); return;
+    }
+    const updated = { ...draftUser };
+    if (newPwd) updated.password = newPwd;
+    await persist({
+      ...data,
+      currentDay: newDay,
+      users: data.users.map(u => u.username === currentUser.username ? updated : u),
+    });
+    Object.assign(currentUser, updated);
+    showToast('Paramètres enregistrés.');
+    setNewPwd(''); setNewPwd2('');
+  };
+
+  const field = (label, val, setter, type = 'text') => (
+    <div>
+      <label style={{ fontSize: '12px', color: COLORS.slate, marginBottom: '4px', display: 'block' }}>{label}</label>
+      <input type={type} value={val} onChange={e => setter(e.target.value)}
+        style={{ width: '100%', padding: '12px 14px', borderRadius: '14px', border: `1.5px solid rgba(0,0,0,0.06)`,
+          fontSize: '14px', background: 'white', outline: 'none', boxSizing: 'border-box',
+          transition: 'border-color 0.2s, box-shadow 0.2s' }}
+        onFocus={e => { e.target.style.borderColor = COLORS.brass; e.target.style.boxShadow = `0 0 0 3px ${COLORS.brass}20`; }}
+        onBlur={e => { e.target.style.borderColor = 'rgba(0,0,0,0.06)'; e.target.style.boxShadow = 'none'; }} />
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div><span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 700 }}>Paramètres</span>
+        <div style={{ fontSize: '13px', color: COLORS.slate }}>Gérer votre compte et la date de travail</div>
+      </div>
+      <div className="glass" style={{ padding: '24px', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <span style={{ fontSize: '15px', fontWeight: 600 }}>Mon compte</span>
+        {field('Nom complet', draftUser.name, v => setDraftUser({...draftUser, name: v}))}
+        {field('Identifiant', draftUser.username, v => setDraftUser({...draftUser, username: v}))}
+        {field('Nouveau mot de passe (laisser vide pour garder)', newPwd, setNewPwd, 'password')}
+        {field('Confirmer le mot de passe', newPwd2, setNewPwd2, 'password')}
+      </div>
+      <div className="glass" style={{ padding: '24px', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <span style={{ fontSize: '15px', fontWeight: 600 }}>Date de travail</span>
+        {field('Jour courant', newDay, v => setNewDay(v), 'date')}
+      </div>
+      <div>
+        <button onClick={saveUser} className="btn btn-primary" style={{ background: COLORS.teal }}>
+          <I.CheckCircle2 size={16} /> Enregistrer
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ----- APP PRINCIPALE -----
 function HotelManager() {
   const [data, setData] = useState(null);
@@ -1746,6 +1823,7 @@ function HotelManager() {
   const [storageError, setStorageError] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('dashboard');
+  const [hoveredNav, setHoveredNav] = useState(null);
   const [toast, setToast] = useState(null);
   const [showSplash, setShowSplash] = useState(true);
   const [apiMode, setApiMode] = useState(false);
@@ -1916,6 +1994,7 @@ function HotelManager() {
     { key: 'cumuls', label: 'Cumuls', icon: I.ClipboardList, roles: ['manager'] },
     { key: 'cloture', label: 'Clôture', icon: I.Lock, roles: ['manager'] },
     { key: 'users', label: 'Utilisateurs', icon: I.Users, roles: ['manager'] },
+    { key: 'settings', label: 'Paramètres', icon: I.Settings, roles: ['manager', 'reception'] },
   ];
 
   return (
@@ -1935,11 +2014,17 @@ function HotelManager() {
               const active = view === it.key;
               const IconComp = it.icon;
               return (
-                <button key={it.key} onClick={() => setView(it.key)} style={{
+                <button key={it.key} onClick={() => setView(it.key)}
+                  onMouseEnter={() => setHoveredNav(it.key)}
+                  onMouseLeave={() => setHoveredNav(null)}
+                  style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '14px',
-                  border: 'none', background: active ? 'rgba(30,27,22,0.06)' : 'transparent',
+                  border: 'none',
+                  background: active ? 'rgba(30,27,22,0.06)' : hoveredNav === it.key ? 'rgba(30,27,22,0.04)' : 'transparent',
                   color: active ? COLORS.ink : COLORS.slate, fontWeight: active ? 600 : 400,
-                  fontSize: '14px', cursor: 'pointer', transition: '0.15s'
+                  fontSize: '14px', cursor: 'pointer',
+                  transform: hoveredNav === it.key && !active ? 'translateX(3px)' : 'none',
+                  transition: 'background 0.2s, transform 0.2s, color 0.15s',
                 }}>
                   <IconComp size={18} style={{ color: active ? COLORS.ink : COLORS.slate, opacity: active ? 1 : 0.6 }} />
                   {it.label}
@@ -1986,7 +2071,7 @@ function HotelManager() {
           </div>
         )}
 
-        <div style={{ flex: 1, overflow: 'auto', paddingBottom: '12px' }}>
+        <div className="view-enter" style={{ flex: 1, overflow: 'auto', paddingBottom: '12px' }}>
           {view === 'dashboard' && <Dashboard data={data} />}
           {view === 'rooms' && <RoomsView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
           {view === 'reservations' && <ReservationsView data={data} persist={persist} showToast={showToast} />}
@@ -1994,6 +2079,7 @@ function HotelManager() {
           {view === 'cumuls' && <CumulsView data={data} />}
           {view === 'cloture' && currentUser.role === 'manager' && <ClotureView data={data} persist={persist} showToast={showToast} currentUser={currentUser} />}
           {view === 'users' && currentUser.role === 'manager' && <UsersView data={data} persist={persist} currentUser={currentUser} showToast={showToast} />}
+          {view === 'settings' && <SettingsView data={data} persist={persist} currentUser={currentUser} showToast={showToast} />}
         </div>
       </div>
 
