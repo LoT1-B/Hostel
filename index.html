@@ -496,14 +496,14 @@ function SplashScreen({ onEnter, backgroundImage }) {
   const monthName = time.toLocaleDateString('fr-FR', { month: 'long' });
   const year = time.getFullYear();
 
-  const weatherIcons = {
-    Sun: I.Sun,
-    Cloud: I.Cloud,
-    Moon: I.Moon,
-    Droplets: I.Droplets,
-    Wind: I.Wind,
+  const getTempIcon = (temp) => {
+    const value = Number(temp.replace('°', ''));
+    if (value >= 26) return I.Sun;
+    if (value >= 22) return I.Cloud;
+    if (value >= 18) return I.Droplets;
+    return I.Moon;
   };
-  const WeatherIcon = weatherIcons[weather.icon] || I.Sun;
+  const TempIcon = getTempIcon(weather.temperature);
 
   return (
     <div style={{
@@ -551,7 +551,7 @@ function SplashScreen({ onEnter, backgroundImage }) {
           <div style={{ padding: '18px', borderRadius: '22px', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.12)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
               <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <WeatherIcon size={22} style={{ color: '#f7d5a6' }} />
+                <TempIcon size={22} style={{ color: '#f7d5a6' }} />
               </div>
               <div>
                 <div style={{ fontSize: '20px', fontWeight: 700 }}>{weather.temperature}</div>
