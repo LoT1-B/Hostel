@@ -463,13 +463,22 @@ function SplashScreen({ onEnter, backgroundImage }) {
   }, []);
 
   useEffect(() => {
-    const weatherConditions = [
-      { temperature: '24°', condition: 'Ensoleillé', icon: 'Sun', humidity: '65%', wind: '12 km/h' },
-      { temperature: '22°', condition: 'Partiellement nuageux', icon: 'Cloud', humidity: '70%', wind: '8 km/h' },
-      { temperature: '26°', condition: 'Dégagé', icon: 'Sun', humidity: '55%', wind: '15 km/h' },
-      { temperature: '20°', condition: 'Brise légère', icon: 'Cloud', humidity: '75%', wind: '18 km/h' },
-    ];
-    setWeather(weatherConditions[Math.floor(Math.random() * weatherConditions.length)]);
+    const updateWeather = () => {
+      const hour = new Date().getHours();
+      if (hour >= 5 && hour < 11) {
+        setWeather({ temperature: '24°', condition: 'Ensoleillé', icon: 'Sun', humidity: '65%', wind: '12 km/h' });
+      } else if (hour >= 11 && hour < 16) {
+        setWeather({ temperature: '26°', condition: 'Partiellement nuageux', icon: 'Cloud', humidity: '70%', wind: '10 km/h' });
+      } else if (hour >= 16 && hour < 20) {
+        setWeather({ temperature: '22°', condition: 'Dégagé', icon: 'Sun', humidity: '58%', wind: '14 km/h' });
+      } else {
+        setWeather({ temperature: '20°', condition: 'Nuit claire', icon: 'Moon', humidity: '72%', wind: '8 km/h' });
+      }
+    };
+
+    updateWeather();
+    const weatherTimer = setInterval(updateWeather, 60000);
+    return () => clearInterval(weatherTimer);
   }, []);
 
   const handleEnter = () => {
