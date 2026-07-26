@@ -207,6 +207,8 @@ const COLORS = {
   line: 'rgba(0,0,0,0.06)'
 };
 
+const BACKGROUND_IMAGES = Array.from({ length: 30 }, (_, index) => `images/image${String(index + 1).padStart(2, '0')}.jpg`);
+
 const Icon = ({ icon, size = 18, style = {} }) =>
   React.createElement('span', {
     dangerouslySetInnerHTML: { __html: icon && icon.toSvg ? icon.toSvg(size) : '' },
@@ -433,7 +435,7 @@ function seedData() {
 }
 
 // ----- SPLASH SCREEN (PAGE DE VEILLE) -----
-function SplashScreen({ onEnter }) {
+function SplashScreen({ onEnter, backgroundImage }) {
   const [time, setTime] = useState(new Date());
   const [weather, setWeather] = useState({
     temperature: '24°',
@@ -443,18 +445,10 @@ function SplashScreen({ onEnter }) {
     wind: '12 km/h'
   });
   const [isVisible, setIsVisible] = useState(true);
-  const [backgroundIndex, setBackgroundIndex] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBackgroundIndex(prev => (prev + 1) % 30);
-    }, 8000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -491,8 +485,6 @@ function SplashScreen({ onEnter }) {
   };
   const WeatherIcon = weatherIcons[weather.icon] || I.Sun;
 
-  const backgroundImages = Array.from({ length: 30 }, (_, index) => `images/image${String(index + 1).padStart(2, '0')}.jpg`);
-
   return (
     <div style={{
       minHeight: '100%',
@@ -500,7 +492,7 @@ function SplashScreen({ onEnter }) {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px',
-      background: `linear-gradient(135deg, rgba(15,12,41,0.78) 0%, rgba(26,26,62,0.72) 40%, rgba(36,36,62,0.78) 100%), url('${backgroundImages[backgroundIndex]}') center/cover no-repeat`,
+      background: `url('${backgroundImage}') center/cover no-repeat`,
       color: 'white',
       transition: 'background 1s ease-in-out'
     }}>
@@ -588,7 +580,7 @@ function SplashScreen({ onEnter }) {
 }
 
 // ----- LOGIN SCREEN (PAGE DE CONNEXION) -----
-function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin }) {
+function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin, backgroundImage }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -626,11 +618,27 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin }) {
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #e8e0d6 0%, #d5ccc0 40%, #c4b8a8 100%)',
+      background: '#e8e0d6',
       position: 'relative', 
       overflow: 'hidden',
       padding: '20px'
     }}>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: `url('${backgroundImage}')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        filter: 'blur(10px)',
+        transform: 'scale(1.05)',
+        zIndex: 0
+      }} />
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'rgba(255,255,255,0.12)',
+        zIndex: 1
+      }} />
       <div style={{
         position: 'absolute',
         inset: 0,
@@ -676,7 +684,8 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin }) {
         opacity: 0.06,
         backgroundImage: 'radial-gradient(circle at 20% 30%, #1e1b16 1px, transparent 1px)',
         backgroundSize: '40px 40px',
-        pointerEvents: 'none'
+        pointerEvents: 'none',
+        zIndex: 2
       }} />
 
       <div 
@@ -687,7 +696,7 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin }) {
           padding: '48px 36px 36px',
           borderRadius: '28px',
           position: 'relative', 
-          zIndex: 2,
+          zIndex: 3,
           background: 'rgba(255, 255, 255, 0.45)',
           backdropFilter: 'blur(24px) saturate(200%)',
           WebkitBackdropFilter: 'blur(24px) saturate(200%)',
@@ -1859,6 +1868,13 @@ function HotelManager() {
   const [toast, setToast] = useState(null);
   const [showSplash, setShowSplash] = useState(true);
   const [apiMode, setApiMode] = useState(false);
+  const [backgroundIndex, setBackgroundIndex] = useState(0);
+
+  useEffect(() => {
+    if (showSplash) {
+      setBackgroundIndex(prev => (prev + 1) % BACKGROUND_IMAGES.length);
+    }
+  }, [showSplash]);
 
   useEffect(() => {
     let mounted = true;
@@ -2009,12 +2025,12 @@ function HotelManager() {
 
   // PAGE DE VEILLE
   if (showSplash) {
-    return <SplashScreen onEnter={() => setShowSplash(false)} />;
+    return <SplashScreen onEnter={() => setShowSplash(false)} backgroundImage={BACKGROUND_IMAGES[backgroundIndex]} />;
   }
 
   // PAGE DE CONNEXION
   if (!currentUser) {
-    return <LoginScreen users={data.users} onLogin={setCurrentUser} storageError={storageError} hotelName={hotelName} onApiLogin={handleApiLogin} />;
+    return <LoginScreen users={data.users} onLogin={setCurrentUser} storageError={storageError} hotelName={hotelName} onApiLogin={handleApiLogin} backgroundImage={BACKGROUND_IMAGES[backgroundIndex]} />;
   }
 
   // APPLICATION PRINCIPALE
