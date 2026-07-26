@@ -21,6 +21,39 @@
       color: #0f172a;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+      min-height: 100dvh;
+    }
+    #root { min-height: 100dvh; }
+    .app-shell { min-height: 100dvh; }
+    .sidebar { width: 220px; min-width: 220px; }
+    .content-area { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 8px 16px 8px 16px; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrap table { min-width: 560px; }
+    .stock-row { display: flex; align-items: center; gap: 14px; }
+    .stock-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .reservation-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    @media (max-width: 920px) {
+      .app-shell { flex-direction: column !important; }
+      .sidebar { width: 100% !important; min-width: 0 !important; border-radius: 0 0 24px 24px !important; margin: 8px 8px 0 !important; }
+      .sidebar-nav { flex-direction: row; flex-wrap: wrap; }
+      .content-area { padding: 8px 12px 8px 12px !important; }
+    }
+    @media (max-width: 640px) {
+      body { font-size: 15px; }
+      .splash-card, .login-card { padding: 28px 20px !important; border-radius: 24px !important; }
+      .splash-grid { grid-template-columns: 1fr !important; }
+      .splash-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+      .login-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+      .login-form { gap: 16px !important; }
+      .login-accounts { padding: 14px !important; }
+      .mobile-stack { flex-direction: column !important; align-items: stretch !important; }
+      .table-wrap table { min-width: 500px; }
+      .stock-row { flex-direction: column !important; align-items: flex-start !important; }
+      .stock-actions { width: 100%; justify-content: flex-start; margin-top: 8px; }
+      .reservation-card { flex-direction: column !important; align-items: flex-start !important; }
+      .reservation-actions { width: 100%; flex-wrap: wrap; }
     }
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -504,27 +537,27 @@ function SplashScreen({ onEnter, backgroundImage }) {
   const year = time.getFullYear();
 
   return (
-    <div style={{
-      minHeight: '100%',
+    <div className="splash-screen" style={{
+      minHeight: '100dvh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px',
+      padding: 'clamp(16px, 4vw, 24px)',
       background: `url('${backgroundImage}') center/cover no-repeat`,
       color: 'white',
       transition: 'background 1s ease-in-out'
     }}>
-      <div style={{
+      <div className="glass splash-card" style={{
         width: '100%',
-        maxWidth: '520px',
-        padding: '36px',
+        maxWidth: '560px',
+        padding: 'clamp(24px, 4vw, 36px)',
         borderRadius: '32px',
         background: 'rgba(255, 255, 255, 0.08)',
         border: '1px solid rgba(255,255,255,0.14)',
         boxShadow: '0 24px 60px rgba(0,0,0,0.18)',
         backdropFilter: 'blur(18px)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
+        <div className="splash-header" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
           <div style={{
             width: '72px',
             height: '72px',
@@ -545,7 +578,7 @@ function SplashScreen({ onEnter, backgroundImage }) {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '28px' }}>
+        <div className="splash-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '18px', marginBottom: '28px' }}>
           <div style={{ padding: '18px', borderRadius: '22px', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.12)' }}>
             <div style={{ marginBottom: '10px' }}>
               <div style={{ fontSize: '20px', fontWeight: 700 }}>{weather.temperature}</div>
@@ -629,15 +662,15 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin, back
   };
 
   return (
-    <div style={{ 
-      minHeight: '100%', 
+    <div className="login-screen" style={{ 
+      minHeight: '100dvh', 
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
       background: '#e8e0d6',
       position: 'relative', 
       overflow: 'hidden',
-      padding: '20px'
+      padding: 'clamp(16px, 4vw, 24px)'
     }}>
       <div style={{
         position: 'absolute',
@@ -705,11 +738,11 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin, back
       }} />
 
       <div 
-        className="glass" 
+        className="glass login-card" 
         style={{ 
           width: '100%', 
           maxWidth: '420px', 
-          padding: '48px 36px 36px',
+          padding: 'clamp(28px, 4vw, 48px) clamp(22px, 4vw, 36px) clamp(24px, 4vw, 36px)',
           borderRadius: '28px',
           position: 'relative', 
           zIndex: 3,
@@ -756,7 +789,7 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin, back
           pointerEvents: 'none'
         }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px', position: 'relative' }}>
+        <div className="login-header" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px', position: 'relative' }}>
           <div style={{ 
             width: '64px', 
             height: '64px', 
@@ -802,7 +835,7 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin, back
           Connectez-vous pour accéder à votre espace
         </div>
 
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form className="login-form" onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
             <label style={{ 
               fontSize: '11px', 
@@ -950,7 +983,7 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin, back
           {loggingIn && <div style={{ fontSize: '12px', color: COLORS.slate, textAlign: 'center' }}>Connexion à l'API…</div>}
         </form>
 
-        <div style={{ 
+        <div className="login-accounts" style={{ 
           marginTop: '28px', 
           padding: '16px 18px', 
           borderRadius: '16px', 
@@ -1025,7 +1058,7 @@ function Field({ label, children }) {
 
 function Table({ headers, rows }) {
   return (
-    <div className="glass" style={{ borderRadius: '20px', overflow: 'hidden', padding: 0 }}>
+    <div className="glass table-wrap" style={{ borderRadius: '20px', overflow: 'hidden', padding: 0 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
         <thead style={{ background: 'rgba(0,0,0,0.02)' }}>
           <tr>{headers.map(h => <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: COLORS.slate, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>)}</tr>
@@ -1227,14 +1260,14 @@ function ReservationsView({ data, persist, showToast }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {data.reservations.length === 0 && <div style={{ fontSize: '14px', color: COLORS.slate }}>Aucune réservation.</div>}
         {data.reservations.slice().reverse().map(r => (
-          <div key={r.id} className="glass" style={{ padding: '16px 20px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div key={r.id} className="glass reservation-card" style={{ padding: '16px 20px', borderRadius: '16px' }}>
             <div>
               <div style={{ fontWeight: 600 }}>{r.guest}</div>
               <div style={{ fontSize: '12px', color: COLORS.slate, marginTop: '2px' }}>
                 Chambre {r.roomNumber} · {formatDate(r.checkin)} → {formatDate(r.checkout)}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="reservation-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span className="tag" style={{ background: RES_STATUS[r.status].color, color: 'white' }}>{RES_STATUS[r.status].label}</span>
               {r.status === 'booked' && (<>
                 <button onClick={() => checkIn(r)} className="btn btn-success" style={{ padding: '6px 12px', fontSize: '12px' }}><I.DoorOpen size={13} /> Check-in</button>
@@ -1351,7 +1384,7 @@ function StockView({ data, persist, role, showToast }) {
           const st = stockStatus(s);
           const pct = s.threshold > 0 ? (s.qty / (s.threshold * 2)) * 100 : 100;
           return (
-            <div key={s.id} className="glass" style={{ padding: '14px 18px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div key={s.id} className="glass stock-row" style={{ padding: '14px 18px', borderRadius: '16px' }}>
               <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: st.level > 0 ? 'rgba(176,90,74,0.08)' : 'rgba(61,122,107,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <I.Package size={16} style={{ color: st.level > 0 ? COLORS.brick : COLORS.teal }} />
               </div>
@@ -1365,7 +1398,7 @@ function StockView({ data, persist, role, showToast }) {
                   <span style={{ fontSize: '12px', color: COLORS.slate }}>{s.qty} / {s.threshold} {s.unit}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+              <div className="stock-actions">
                 <button onClick={() => setMoveModal({ item: s, type: 'entree' })} className="btn btn-success" style={{ padding: '4px 10px', fontSize: '11px' }}><I.ArrowDown size={12} /></button>
                 <button onClick={() => setMoveModal({ item: s, type: 'sortie' })} className="btn btn-danger" style={{ padding: '4px 10px', fontSize: '11px' }}><I.ArrowUp size={12} /></button>
                 {canManage && (<>
@@ -2086,9 +2119,9 @@ function HotelManager() {
   ];
 
   return (
-    <div style={{ display: 'flex', height: '100%', background: 'linear-gradient(135deg, #f7fbff 0%, #eaf4ff 55%, #dcecff 100%)' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100%', minHeight: '100dvh', background: 'linear-gradient(135deg, #f7fbff 0%, #eaf4ff 55%, #dcecff 100%)' }}>
       {/* Sidebar glass */}
-      <div className="glass" style={{ width: '220px', minWidth: '220px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+      <div className="glass sidebar" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
         padding: '20px 14px', borderRadius: '0 24px 24px 0', margin: '8px 0 8px 8px', background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(220,236,255,0.86) 100%)' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px', paddingLeft: '6px' }}>
@@ -2097,7 +2130,7 @@ function HotelManager() {
             </div>
             <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700 }}>{hotelName}</span>
           </div>
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <nav className="sidebar-nav">
             {navItems.filter(it => it.roles.includes(currentUser.role)).map(it => {
               const active = view === it.key;
               const IconComp = it.icon;
@@ -2139,9 +2172,9 @@ function HotelManager() {
       </div>
 
       {/* Contenu principal */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, padding: '8px 16px 8px 16px' }}>
+      <div className="content-area">
         {/* TopBar glass */}
-        <div className="glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderRadius: '24px', marginBottom: '16px' }}>
+        <div className="glass header-row" style={{ padding: '12px 24px', borderRadius: '24px', marginBottom: '16px' }}>
           <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '15px', fontWeight: 500 }}>Journée du {formatDateLong(data.currentDay)}</span>
           <span style={{ fontSize: '12px', color: COLORS.slate, display: 'flex', alignItems: 'center', gap: '6px' }}>
             {data.settings.dayBoundary === 'midnight' ? <I.Moon size={13} /> : <I.Sun size={13} />}
