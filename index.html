@@ -11,26 +11,27 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #root { height: 100%; width: 100%; }
     body {
       font-family: 'Inter', sans-serif;
       background: #f4f0ea;
-      color: #1e1b16;
+      color: #0f172a;
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 20px; }
 
     .glass {
-      background: rgba(255, 255, 255, 0.55);
-      backdrop-filter: blur(14px) saturate(180%);
-      -webkit-backdrop-filter: blur(14px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      box-shadow: 0 8px 32px -12px rgba(0,0,0,0.06);
+      background: linear-gradient(135deg, rgba(255,255,255,0.88) 0%, rgba(232,244,255,0.82) 100%);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: 0 18px 45px -18px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.8);
     }
     .card-hover {
       transition: all 0.25s ease;
@@ -52,9 +53,10 @@
       color: #3d352e;
     }
     .stat-number {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600;
+      font-family: 'Manrope', sans-serif;
+      font-weight: 700;
       letter-spacing: -0.02em;
+      color: #0f2f4f;
     }
     .btn {
       display: inline-flex;
@@ -63,31 +65,35 @@
       padding: 10px 20px;
       border-radius: 14px;
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
       border: none;
       cursor: pointer;
       transition: all 0.2s ease;
+      font-family: 'Manrope', sans-serif;
     }
     .btn-primary {
-      background: #1e1b16;
+      background: linear-gradient(135deg, #0f2f4f 0%, #2563eb 100%);
       color: white;
+      box-shadow: 0 8px 18px rgba(37,99,235,0.18);
     }
     .btn-primary:hover {
-      background: #2f2a24;
+      background: linear-gradient(135deg, #0d2740 0%, #1d4ed8 100%);
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(30,27,22,0.15);
+      box-shadow: 0 10px 24px rgba(37,99,235,0.25);
     }
     .btn-success {
-      background: #3d7a6b;
+      background: linear-gradient(135deg, #0f6db4 0%, #2563eb 100%);
       color: white;
+      box-shadow: 0 8px 18px rgba(37,99,235,0.16);
     }
     .btn-success:hover {
-      background: #32685b;
+      background: linear-gradient(135deg, #0f4d79 0%, #1e40af 100%);
       transform: translateY(-2px);
     }
     .btn-danger {
-      background: #b05a4a;
+      background: linear-gradient(135deg, #d9480f 0%, #b42318 100%);
       color: white;
+      box-shadow: 0 8px 18px rgba(180,35,24,0.16);
     }
     .btn-danger:hover {
       background: #9a4d3f;
@@ -98,17 +104,20 @@
       color: #7a7269;
     }
     .btn-ghost:hover {
-      background: rgba(30,27,22,0.05);
+      background: rgba(37,99,235,0.08);
+      transform: translateY(-1px);
     }
     .input {
       width: 100%;
       padding: 12px 16px;
       border-radius: 14px;
-      border: 1px solid rgba(0,0,0,0.06);
-      background: rgba(255,255,255,0.5);
+      border: 1px solid rgba(15,47,79,0.12);
+      background: rgba(255,255,255,0.72);
       font-size: 14px;
       outline: none;
       transition: all 0.2s;
+      color: #0f172a;
+      font-family: 'Inter', sans-serif;
     }
     .input:focus {
       border-color: #b8946e;
@@ -119,16 +128,18 @@
       padding: 8px 18px;
       border-radius: 40px;
       font-size: 13px;
-      font-weight: 500;
-      border: 1px solid rgba(0,0,0,0.06);
-      background: rgba(255,255,255,0.3);
+      font-weight: 600;
+      border: 1px solid rgba(15,47,79,0.08);
+      background: rgba(255,255,255,0.4);
       cursor: pointer;
       transition: all 0.15s;
+      color: #334155;
+      font-family: 'Manrope', sans-serif;
     }
     .subtab.active {
-      background: #1e1b16;
+      background: linear-gradient(135deg, #0f2f4f 0%, #2563eb 100%);
       color: white;
-      border-color: #1e1b16;
+      border-color: transparent;
     }
     .subtab:hover:not(.active) {
       background: rgba(255,255,255,0.5);
@@ -196,15 +207,15 @@ const { useState, useEffect, useCallback } = React;
 
 // ----- CONSTANTES -----
 const COLORS = {
-  ink: '#1e1b16',
-  inkSoft: '#3d352e',
-  brass: '#b8946e',
-  brassLight: '#dccbb8',
-  teal: '#3d7a6b',
-  brick: '#b05a4a',
-  slate: '#7a7269',
-  paper: '#f4f0ea',
-  line: 'rgba(0,0,0,0.06)'
+  ink: '#0f172a',
+  inkSoft: '#334155',
+  brass: '#2563eb',
+  brassLight: '#dbeafe',
+  teal: '#0f4c81',
+  brick: '#b91c1c',
+  slate: '#64748b',
+  paper: '#f7fbff',
+  line: 'rgba(15,23,42,0.08)'
 };
 
 const BACKGROUND_IMAGES = Array.from({ length: 30 }, (_, index) => `images/image${String(index + 1).padStart(2, '0')}.jpg`);
@@ -1142,8 +1153,8 @@ function RoomsView({ data, persist, role, showToast }) {
           <span className="tag" style={{ background: ROOM_STATUS[r.status].color, color: 'white' }}>{ROOM_STATUS[r.status].label}</span>,
           ...(canManage ? [(
             <div style={{ display: 'flex', gap: '4px' }}>
-              <button onClick={() => setModal({ mode: 'edit', room: r })} className="btn-ghost" style={{ padding: '4px 8px', borderRadius: '8px' }}><I.Pencil size={14} style={{ color: COLORS.slate }} /></button>
-              <button onClick={() => remove(r)} className="btn-ghost" style={{ padding: '4px 8px', borderRadius: '8px' }}><I.Trash2 size={14} style={{ color: COLORS.brick }} /></button>
+              <button onClick={() => setModal({ mode: 'edit', room: r })} className="btn-ghost" style={{ padding: '6px 8px', borderRadius: '10px', background: 'rgba(37,99,235,0.08)' }}><I.Pencil size={14} style={{ color: COLORS.brass }} /></button>
+              <button onClick={() => remove(r)} className="btn-ghost" style={{ padding: '6px 8px', borderRadius: '10px', background: 'rgba(185,28,28,0.08)' }}><I.Trash2 size={14} style={{ color: COLORS.brick }} /></button>
             </div>
           )] : []),
         ]
@@ -1220,7 +1231,7 @@ function ReservationsView({ data, persist, showToast }) {
               <span className="tag" style={{ background: RES_STATUS[r.status].color, color: 'white' }}>{RES_STATUS[r.status].label}</span>
               {r.status === 'booked' && (<>
                 <button onClick={() => checkIn(r)} className="btn btn-success" style={{ padding: '6px 12px', fontSize: '12px' }}><I.DoorOpen size={13} /> Check-in</button>
-                <button onClick={() => cancel(r)} className="btn-ghost" style={{ fontSize: '12px', color: COLORS.brick, padding: '6px 10px' }}>Annuler</button>
+                <button onClick={() => cancel(r)} className="btn-ghost" style={{ fontSize: '12px', color: COLORS.brick, padding: '6px 10px', background: 'rgba(185,28,28,0.08)' }}>Annuler</button>
               </>)}
               {r.status === 'checked-in' && <button onClick={() => checkOut(r)} className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '12px' }}><I.DoorClosed size={13} /> Check-out</button>}
             </div>
@@ -1351,8 +1362,8 @@ function StockView({ data, persist, role, showToast }) {
                 <button onClick={() => setMoveModal({ item: s, type: 'entree' })} className="btn btn-success" style={{ padding: '4px 10px', fontSize: '11px' }}><I.ArrowDown size={12} /></button>
                 <button onClick={() => setMoveModal({ item: s, type: 'sortie' })} className="btn btn-danger" style={{ padding: '4px 10px', fontSize: '11px' }}><I.ArrowUp size={12} /></button>
                 {canManage && (<>
-                  <button onClick={() => setModal({ mode: 'edit', item: s })} className="btn-ghost" style={{ padding: '4px 6px', borderRadius: '8px' }}><I.Pencil size={13} style={{ color: COLORS.slate }} /></button>
-                  <button onClick={() => remove(s)} className="btn-ghost" style={{ padding: '4px 6px', borderRadius: '8px' }}><I.Trash2 size={13} style={{ color: COLORS.brick }} /></button>
+                  <button onClick={() => setModal({ mode: 'edit', item: s })} className="btn-ghost" style={{ padding: '6px 7px', borderRadius: '10px', background: 'rgba(37,99,235,0.08)' }}><I.Pencil size={13} style={{ color: COLORS.brass }} /></button>
+                  <button onClick={() => remove(s)} className="btn-ghost" style={{ padding: '6px 7px', borderRadius: '10px', background: 'rgba(185,28,28,0.08)' }}><I.Trash2 size={13} style={{ color: COLORS.brick }} /></button>
                 </>)}
               </div>
             </div>
@@ -1769,7 +1780,7 @@ function UsersView({ data, persist, currentUser, showToast }) {
           <span style={{ fontWeight: 500 }}>{u.name}</span>,
           <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '13px' }}>{u.username}</span>,
           <span className="tag" style={{ background: 'rgba(0,0,0,0.04)', color: COLORS.ink }}>{ROLE_LABEL[u.role]}</span>,
-          <button onClick={() => remove(u)} className="btn-ghost" style={{ padding: '4px 6px', borderRadius: '8px' }}><I.Trash2 size={14} style={{ color: COLORS.brick }} /></button>,
+          <button onClick={() => remove(u)} className="btn-ghost" style={{ padding: '6px 7px', borderRadius: '10px', background: 'rgba(185,28,28,0.08)' }}><I.Trash2 size={14} style={{ color: COLORS.brick }} /></button>,
         ]
       }))} />
       {modal && (
@@ -2068,10 +2079,10 @@ function HotelManager() {
   ];
 
   return (
-    <div style={{ display: 'flex', height: '100%', background: COLORS.paper }}>
+    <div style={{ display: 'flex', height: '100%', background: 'linear-gradient(135deg, #f7fbff 0%, #eaf4ff 55%, #dcecff 100%)' }}>
       {/* Sidebar glass */}
       <div className="glass" style={{ width: '220px', minWidth: '220px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: '20px 14px', borderRadius: '0 24px 24px 0', margin: '8px 0 8px 8px' }}>
+        padding: '20px 14px', borderRadius: '0 24px 24px 0', margin: '8px 0 8px 8px', background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(220,236,255,0.86) 100%)' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px', paddingLeft: '6px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: COLORS.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
