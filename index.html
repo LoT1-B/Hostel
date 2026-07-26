@@ -1877,6 +1877,28 @@ function HotelManager() {
   }, [showSplash]);
 
   useEffect(() => {
+    if (showSplash) return;
+
+    let timer = null;
+    const resetTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        setShowSplash(true);
+      }, 10000);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach(event => window.addEventListener(event, resetTimer, { passive: true }));
+
+    resetTimer();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [showSplash]);
+
+  useEffect(() => {
     let mounted = true;
     (async () => {
       try {
