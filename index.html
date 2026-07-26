@@ -1884,7 +1884,7 @@ function HotelManager() {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         setShowSplash(true);
-      }, 10000);
+      }, 30 * 60 * 1000);
     };
 
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
