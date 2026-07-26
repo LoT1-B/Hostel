@@ -443,10 +443,18 @@ function SplashScreen({ onEnter }) {
     wind: '12 km/h'
   });
   const [isVisible, setIsVisible] = useState(true);
+  const [backgroundIndex, setBackgroundIndex] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBackgroundIndex(prev => (prev + 1) % 30);
+    }, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -483,6 +491,8 @@ function SplashScreen({ onEnter }) {
   };
   const WeatherIcon = weatherIcons[weather.icon] || I.Sun;
 
+  const backgroundImages = Array.from({ length: 30 }, (_, index) => `images/image${String(index + 1).padStart(2, '0')}.jpg`);
+
   return (
     <div style={{
       minHeight: '100%',
@@ -490,8 +500,9 @@ function SplashScreen({ onEnter }) {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px',
-      background: 'linear-gradient(135deg, #0f0c29 0%, #1a1a3e 40%, #24243e 100%)',
-      color: 'white'
+      background: `linear-gradient(135deg, rgba(15,12,41,0.78) 0%, rgba(26,26,62,0.72) 40%, rgba(36,36,62,0.78) 100%), url('${backgroundImages[backgroundIndex]}') center/cover no-repeat`,
+      color: 'white',
+      transition: 'background 1s ease-in-out'
     }}>
       <div style={{
         width: '100%',
