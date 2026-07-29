@@ -290,6 +290,8 @@ const I = {
   ArrowUp: createIcon(lucide.ArrowUpCircle),
   ArrowRight: createIcon(lucide.ArrowRight),
   ClipboardList: createIcon(lucide.ClipboardList),
+  Receipt: createIcon(lucide.Receipt),
+  Wallet: createIcon(lucide.Wallet),
   History: createIcon(lucide.History),
   Moon: createIcon(lucide.Moon),
   Sun: createIcon(lucide.Sun),
@@ -387,6 +389,7 @@ async function loadAllFromApi() {
     rooms, reservations, stockBoisson, stockNourriture,
     movements: [],
     users,
+    bons: [],
   };
 }
 
@@ -407,6 +410,23 @@ function stockStatus(item) {
   return { label: 'OK', color: COLORS.teal, level: 0 };
 }
 
+function bonSummary(data, day) {
+  const bons = (data.bons || []).filter(b => b.day === day);
+  const encaisses = bons.filter(b => b.status === 'encaisse');
+  const enAttente = bons.filter(b => b.status === 'ouvert');
+  const totalEncaisse = encaisses.reduce((s, b) => s + Number(b.montant || 0), 0);
+  const totalCout = encaisses.reduce((s, b) => s + Number(b.cout || 0), 0);
+  const totalEnAttente = enAttente.reduce((s, b) => s + Number(b.montant || 0), 0);
+  return {
+    totalEncaisse,
+    totalCout,
+    benefice: totalEncaisse - totalCout,
+    nbEncaisses: encaisses.length,
+    nbEnAttente: enAttente.length,
+    totalEnAttente,
+  };
+}
+
 function daySnapshot(data, day) {
   const rooms = data.rooms;
   const occupied = rooms.filter(r => r.status === 'occupied').length;
@@ -416,6 +436,7 @@ function daySnapshot(data, day) {
   const moves = data.movements.filter(m => m.day === day);
   const sumMove = (cat, type) => moves.filter(m => m.category === cat && m.type === type).reduce((s, m) => s + Number(m.qty || 0), 0);
   const lowStockCount = [...data.stockBoisson, ...data.stockNourriture].filter(s => stockStatus(s).level > 0).length;
+  const caisse = bonSummary(data, day);
   return {
     day,
     roomsTotal: rooms.length,
@@ -429,6 +450,9 @@ function daySnapshot(data, day) {
     nourritureEntrees: sumMove('nourriture', 'entree'),
     nourritureSorties: sumMove('nourriture', 'sortie'),
     lowStockCount,
+    caisseEncaisse: caisse.totalEncaisse,
+    caisseCout: caisse.totalCout,
+    caisseBenefice: caisse.benefice,
   };
 }
 
@@ -445,9 +469,9 @@ function seedData() {
     { id: uid(), guest: 'K. Amouzou', roomNumber: '102', checkin: today, checkout: addDays(today, 2), status: 'checked-in', notes: '' },
   ];
   const stockBoisson = [
-    { id: uid(), name: 'Eau minérale', qty: 60, unit: 'bouteilles', threshold: 20 },
-    { id: uid(), name: 'Bière (Awooyo)', qty: 8, unit: 'casiers', threshold: 10 },
-    { id: uid(), name: 'Sodas', qty: 30, unit: 'bouteilles', threshold: 15 },
+    { id: uid(), name: 'Eau minérale', qty: 60, unit: 'bouteilles', threshold: 20, price: 1000, costPrice: 600 },
+    { id: uid(), name: 'Bière (Awooyo)', qty: 8, unit: 'casiers', threshold: 10, price: 1200, costPrice: 700 },
+    { id: uid(), name: 'Sodas', qty: 30, unit: 'bouteilles', threshold: 15, price: 900, costPrice: 500 },
   ];
   const stockNourriture = [
     { id: uid(), name: 'Riz', qty: 25, unit: 'kg', threshold: 10 },
@@ -482,6 +506,7 @@ function seedData() {
     rooms, reservations, stockBoisson, stockNourriture,
     movements: [],
     users,
+    bons: [],
   };
 }
 
@@ -1303,7 +1328,7 @@ function StockView({ data, persist, role, showToast }) {
   const [cat, setCat] = useState('boisson');
   const [modal, setModal] = useState(null);
   const [moveModal, setMoveModal] = useState(null);
-  const [draft, setDraft] = useState({ name: '', qty: 0, unit: 'pcs', threshold: 5 });
+  const [draft, setDraft] = useState({ name: '', qty: 0, unit: 'pcs', threshold: 5, price: 1000, costPrice: 600 });
   const [moveQty, setMoveQty] = useState(1);
   const [undoStack, setUndoStack] = useState([]);
   const canManage = role === 'manager';
@@ -1312,13 +1337,18 @@ function StockView({ data, persist, role, showToast }) {
 
   useEffect(() => {
     if (modal?.mode === 'edit') setDraft(modal.item);
-    if (modal?.mode === 'add') setDraft({ name: '', qty: 0, unit: 'pcs', threshold: 5 });
-  }, [modal]);
+    if (modal?.mode === 'add') setDraft(cat === 'boisson' ? { name: '', qty: 0, unit: 'pcs', threshold: 5, price: 1000, costPrice: 600 } : { name: '', qty: 0, unit: 'pcs', threshold: 5 });
+  }, [modal, cat]);
   useEffect(() => { setMoveQty(1); }, [moveModal]);
 
   const save = async () => {
     if (!draft.name.trim()) { showToast('Le nom est requis.', 'error'); return; }
-    const clean = { ...draft, qty: Number(draft.qty), threshold: Number(draft.threshold) };
+    const clean = {
+      ...draft,
+      qty: Number(draft.qty),
+      threshold: Number(draft.threshold),
+      ...(cat === 'boisson' ? { price: Number(draft.price || 0), costPrice: Number(draft.costPrice || 0) } : {}),
+    };
     let list2;
     if (modal.mode === 'add') list2 = [...list, { ...clean, id: uid() }];
     else list2 = list.map(s => s.id === modal.item.id ? clean : s);
@@ -1435,6 +1465,12 @@ function StockView({ data, persist, role, showToast }) {
             <Field label="Quantité"><input type="number" className="input" value={draft.qty} onChange={e => setDraft({ ...draft, qty: e.target.value })} /></Field>
             <Field label="Unité"><input className="input" value={draft.unit} onChange={e => setDraft({ ...draft, unit: e.target.value })} placeholder="pcs, kg…" /></Field>
           </div>
+          {cat === 'boisson' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Field label="Prix de vente"><input type="number" className="input" value={draft.price || 0} onChange={e => setDraft({ ...draft, price: e.target.value })} /></Field>
+              <Field label="Coût d'achat"><input type="number" className="input" value={draft.costPrice || 0} onChange={e => setDraft({ ...draft, costPrice: e.target.value })} /></Field>
+            </div>
+          )}
           <Field label="Seuil"><input type="number" className="input" value={draft.threshold} onChange={e => setDraft({ ...draft, threshold: e.target.value })} /></Field>
           <button onClick={save} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}><I.CheckCircle2 size={16} /> Enregistrer</button>
         </Modal>
@@ -1447,6 +1483,257 @@ function StockView({ data, persist, role, showToast }) {
           </Field>
           <button onClick={doMove} className={'btn ' + (moveModal.type === 'entree' ? 'btn-success' : 'btn-danger')} style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
             {moveModal.type === 'entree' ? <I.ArrowDown size={16} /> : <I.ArrowUp size={16} />} Confirmer
+          </button>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ----- COMPOSANT : ligne d'article dans le formulaire "bon boisson" -----
+function BoissonLineEditor({ stock, lines, setLines }) {
+  const addLine = () => {
+    const first = stock[0];
+    if (!first) return;
+    setLines([...lines, { stockItemId: first.id, name: first.name, qty: 1, unitPrice: first.price || 0, unitCost: first.costPrice || 0 }]);
+  };
+  const updateLine = (idx, patch) => {
+    setLines(lines.map((l, i) => {
+      if (i !== idx) return l;
+      const merged = { ...l, ...patch };
+      if (patch.stockItemId) {
+        const item = stock.find(s => s.id === patch.stockItemId);
+        if (item) { merged.name = item.name; merged.unitPrice = item.price || 0; merged.unitCost = item.costPrice || 0; }
+      }
+      return merged;
+    }));
+  };
+  const removeLine = (idx) => setLines(lines.filter((_, i) => i !== idx));
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+      {lines.map((line, idx) => {
+        const stockItem = stock.find(s => s.id === line.stockItemId);
+        const disponible = stockItem ? stockItem.qty : 0;
+        const insuffisant = Number(line.qty) > disponible;
+        return (
+          <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <select className="input" style={{ flex: '2 1 140px' }} value={line.stockItemId} onChange={e => updateLine(idx, { stockItemId: e.target.value })}>
+              {stock.map(s => <option key={s.id} value={s.id}>{s.name} ({s.qty} {s.unit} dispo.)</option>)}
+            </select>
+            <input type="number" min="1" className="input" style={{ flex: '1 1 70px' }} value={line.qty} onChange={e => updateLine(idx, { qty: e.target.value })} />
+            <button onClick={() => removeLine(idx)} className="btn-ghost" style={{ padding: '8px', borderRadius: '10px', background: 'rgba(185,28,28,0.08)' }}>
+              <I.Trash2 size={14} style={{ color: COLORS.brick }} />
+            </button>
+            {insuffisant && (
+              <div style={{ width: '100%', fontSize: '11px', color: COLORS.brick }}>
+                Stock insuffisant — {disponible} {stockItem?.unit} disponible(s)
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <button onClick={addLine} className="btn-ghost" style={{ alignSelf: 'flex-start', fontSize: '12px', border: `1px dashed ${COLORS.slate}40`, borderRadius: '12px', padding: '8px 14px' }}>
+        <I.Plus size={14} /> Ajouter un article
+      </button>
+    </div>
+  );
+}
+
+// ----- VUE PRINCIPALE : CAISSE -----
+function CaisseView({ data, persist, role, showToast, currentUser }) {
+  const [cat, setCat] = useState('boisson');
+  const [modal, setModal] = useState(false);
+  const [lines, setLines] = useState([]);
+  const [freeDraft, setFreeDraft] = useState({ label: '', montant: '', cout: '' });
+  const [confirmingBon, setConfirmingBon] = useState(null);
+
+  const stockForCat = cat === 'boisson' ? data.stockBoisson : [];
+  const catConfig = BON_CATS[cat];
+
+  useEffect(() => {
+    if (modal && catConfig.linkedToStock) setLines(stockForCat.length ? [{ stockItemId: stockForCat[0].id, name: stockForCat[0].name, qty: 1, unitPrice: stockForCat[0].price || 0, unitCost: stockForCat[0].costPrice || 0 }] : []);
+    if (modal && !catConfig.linkedToStock) setFreeDraft({ label: '', montant: '', cout: '' });
+  }, [modal, cat]);
+
+  const todaysBons = (data.bons || []).filter(b => b.day === data.currentDay).slice().reverse();
+  const summary = bonSummary(data, data.currentDay);
+
+  const createStockBon = async () => {
+    if (lines.length === 0) { showToast('Ajoute au moins un article.', 'error'); return; }
+    for (const l of lines) {
+      const item = data.stockBoisson.find(s => s.id === l.stockItemId);
+      if (!item || Number(l.qty) <= 0) { showToast('Quantité invalide.', 'error'); return; }
+      if (Number(l.qty) > item.qty) { showToast(`Stock insuffisant pour ${item.name} (${item.qty} dispo.).`, 'error'); return; }
+    }
+    const montant = lines.reduce((s, l) => s + Number(l.qty) * Number(l.unitPrice), 0);
+    const cout = lines.reduce((s, l) => s + Number(l.qty) * Number(l.unitCost), 0);
+    const label = lines.map(l => `${l.name} x${l.qty}`).join(', ');
+
+    const newStockBoisson = data.stockBoisson.map(item => {
+      const line = lines.find(l => l.stockItemId === item.id);
+      return line ? { ...item, qty: item.qty - Number(line.qty) } : item;
+    });
+    const newMovements = lines.map(l => ({
+      id: uid(), category: 'boisson', itemId: l.stockItemId, itemName: l.name,
+      type: 'sortie', qty: Number(l.qty), day: data.currentDay, time: new Date().toISOString(), note: 'Bon caisse',
+    }));
+
+    const bon = {
+      id: uid(), category: 'boisson', label, items: lines,
+      montant, cout, status: 'ouvert',
+      day: data.currentDay, createdAt: new Date().toISOString(), createdBy: currentUser?.username || '',
+    };
+
+    await persist({
+      ...data,
+      stockBoisson: newStockBoisson,
+      movements: [...data.movements, ...newMovements],
+      bons: [...(data.bons || []), bon],
+    });
+    showToast('Bon boisson enregistré et stock déduit.');
+    setModal(false);
+  };
+
+  const createFreeBon = async () => {
+    if (!freeDraft.label.trim() || !freeDraft.montant) { showToast('Description et montant requis.', 'error'); return; }
+    const bon = {
+      id: uid(), category: cat, label: freeDraft.label.trim(), items: [],
+      montant: Number(freeDraft.montant), cout: Number(freeDraft.cout || 0), status: 'ouvert',
+      day: data.currentDay, createdAt: new Date().toISOString(), createdBy: currentUser?.username || '',
+    };
+    await persist({ ...data, bons: [...(data.bons || []), bon] });
+    showToast('Bon enregistré.');
+    setModal(false);
+  };
+
+  const save = () => catConfig.linkedToStock ? createStockBon() : createFreeBon();
+
+  const encaisser = async (bon) => {
+    await persist({ ...data, bons: (data.bons || []).map(b => b.id === bon.id ? { ...b, status: 'encaisse', encaisseAt: new Date().toISOString(), encaisseBy: currentUser?.username || '' } : b) });
+    showToast(`Bon encaissé — ${formatCurrency(bon.montant)}.`);
+    setConfirmingBon(null);
+  };
+
+  const annuler = async (bon) => {
+    let stockBoisson = data.stockBoisson;
+    let movements = data.movements;
+    if (bon.category === 'boisson' && Array.isArray(bon.items) && bon.items.length) {
+      stockBoisson = data.stockBoisson.map(item => {
+        const line = bon.items.find(l => l.stockItemId === item.id);
+        return line ? { ...item, qty: item.qty + Number(line.qty) } : item;
+      });
+      movements = [...data.movements, ...bon.items.map(l => ({
+        id: uid(), category: 'boisson', itemId: l.stockItemId, itemName: l.name,
+        type: 'entree', qty: Number(l.qty), day: data.currentDay, time: new Date().toISOString(), note: 'Annulation bon',
+      }))];
+    }
+    await persist({ ...data, stockBoisson, movements, bons: (data.bons || []).map(b => b.id === bon.id ? { ...b, status: 'annule' } : b) });
+    showToast('Bon annulé' + (bon.category === 'boisson' ? ' et stock réintégré.' : '.'));
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 700 }}>Caisse</span>
+          <div style={{ fontSize: '13px', color: COLORS.slate }}>Bons du {formatDate(data.currentDay)}</div>
+        </div>
+        <button onClick={() => setModal(true)} className="btn btn-primary"><I.Plus size={16} /> Nouveau bon</button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))', gap: '14px' }}>
+        <div className="glass card-hover" style={{ padding: '16px 18px', borderRadius: '20px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: COLORS.slate, textTransform: 'uppercase', marginBottom: '6px' }}>Total encaissé</div>
+          <div className="stat-number" style={{ fontSize: '22px', color: COLORS.teal }}>{formatCurrency(summary.totalEncaisse)}</div>
+          <div style={{ fontSize: '11px', color: COLORS.slate, marginTop: '2px' }}>{summary.nbEncaisses} bon(s)</div>
+        </div>
+        <div className="glass card-hover" style={{ padding: '16px 18px', borderRadius: '20px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: COLORS.slate, textTransform: 'uppercase', marginBottom: '6px' }}>Coût réappro.</div>
+          <div className="stat-number" style={{ fontSize: '22px', color: COLORS.brick }}>{formatCurrency(summary.totalCout)}</div>
+        </div>
+        <div className="glass card-hover" style={{ padding: '16px 18px', borderRadius: '20px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: COLORS.slate, textTransform: 'uppercase', marginBottom: '6px' }}>Bénéfice</div>
+          <div className="stat-number" style={{ fontSize: '22px', color: COLORS.brass }}>{formatCurrency(summary.benefice)}</div>
+        </div>
+        <div className="glass card-hover" style={{ padding: '16px 18px', borderRadius: '20px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: COLORS.slate, textTransform: 'uppercase', marginBottom: '6px' }}>En attente</div>
+          <div className="stat-number" style={{ fontSize: '22px', color: '#b8946e' }}>{formatCurrency(summary.totalEnAttente)}</div>
+          <div style={{ fontSize: '11px', color: COLORS.slate, marginTop: '2px' }}>{summary.nbEnAttente} bon(s) non encaissé(s)</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {todaysBons.length === 0 && <div style={{ fontSize: '14px', color: COLORS.slate }}>Aucun bon aujourd'hui.</div>}
+        {todaysBons.map(b => (
+          <div key={b.id} className="glass reservation-card" style={{ padding: '14px 20px', borderRadius: '16px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="tag" style={{ background: 'rgba(0,0,0,0.04)', color: COLORS.ink }}>{BON_CATS[b.category]?.label || b.category}</span>
+                <span style={{ fontWeight: 600 }}>{b.label}</span>
+              </div>
+              <div style={{ fontSize: '12px', color: COLORS.slate, marginTop: '4px' }}>
+                {formatCurrency(b.montant)} · coût {formatCurrency(b.cout)} · {new Date(b.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+            <div className="reservation-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="tag" style={{ background: BON_STATUS[b.status].color, color: 'white' }}>{BON_STATUS[b.status].label}</span>
+              {b.status === 'ouvert' && (<>
+                <button onClick={() => setConfirmingBon(b)} className="btn btn-success" style={{ padding: '6px 12px', fontSize: '12px' }}><I.CheckCircle2 size={13} /> Encaisser</button>
+                <button onClick={() => annuler(b)} className="btn-ghost" style={{ fontSize: '12px', color: COLORS.brick, padding: '6px 10px', background: 'rgba(185,28,28,0.08)' }}>Annuler</button>
+              </>)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {modal && (
+        <Modal title="Nouveau bon" onClose={() => setModal(false)}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
+            {Object.entries(BON_CATS).map(([k, v]) => (
+              <button key={k} className={'subtab' + (cat === k ? ' active' : '')} onClick={() => setCat(k)}>
+                {React.createElement(v.icon, {}, null)} {v.label}
+              </button>
+            ))}
+          </div>
+
+          {catConfig.linkedToStock ? (
+            <>
+              <BoissonLineEditor stock={data.stockBoisson} lines={lines} setLines={setLines} />
+              <div style={{ fontSize: '13px', color: COLORS.slate, marginBottom: '16px' }}>
+                Total : <strong style={{ color: COLORS.brass }}>{formatCurrency(lines.reduce((s, l) => s + Number(l.qty || 0) * Number(l.unitPrice || 0), 0))}</strong>
+                {' '}· Coût : <strong>{formatCurrency(lines.reduce((s, l) => s + Number(l.qty || 0) * Number(l.unitCost || 0), 0))}</strong>
+              </div>
+            </>
+          ) : (
+            <>
+              <Field label="Description du bon">
+                <input className="input" value={freeDraft.label} onChange={e => setFreeDraft({ ...freeDraft, label: e.target.value })} placeholder="Ex: Salade + Spaghetti" />
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <Field label="Montant (FCFA)">
+                  <input type="number" className="input" value={freeDraft.montant} onChange={e => setFreeDraft({ ...freeDraft, montant: e.target.value })} />
+                </Field>
+                <Field label="Coût estimé (optionnel)">
+                  <input type="number" className="input" value={freeDraft.cout} onChange={e => setFreeDraft({ ...freeDraft, cout: e.target.value })} placeholder="Pour calcul du bénéfice" />
+                </Field>
+              </div>
+            </>
+          )}
+
+          <button onClick={save} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
+            <I.CheckCircle2 size={16} /> Enregistrer le bon
+          </button>
+        </Modal>
+      )}
+
+      {confirmingBon && (
+        <Modal title="Confirmer l'encaissement" onClose={() => setConfirmingBon(null)}>
+          <div style={{ fontSize: '14px', lineHeight: 1.6, marginBottom: '18px' }}>
+            Encaisser le bon <strong>{confirmingBon.label}</strong> pour <strong style={{ color: COLORS.brass }}>{formatCurrency(confirmingBon.montant)}</strong> ?
+          </div>
+          <button onClick={() => encaisser(confirmingBon)} className="btn btn-success" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
+            <I.CheckCircle2 size={16} /> Confirmer l'encaissement
           </button>
         </Modal>
       )}
@@ -2112,6 +2399,7 @@ function HotelManager() {
     { key: 'rooms', label: 'Chambres', icon: I.BedDouble, roles: ['manager', 'reception'] },
     { key: 'reservations', label: 'Réservations', icon: I.CalendarCheck, roles: ['manager', 'reception'] },
     { key: 'stock', label: 'Stock', icon: I.Package, roles: ['manager', 'reception'] },
+    { key: 'caisse', label: 'Caisse', icon: I.Wallet, roles: ['manager', 'reception'] },
     { key: 'cumuls', label: 'Cumuls', icon: I.ClipboardList, roles: ['manager'] },
     { key: 'cloture', label: 'Clôture', icon: I.Lock, roles: ['manager'] },
     { key: 'users', label: 'Utilisateurs', icon: I.Users, roles: ['manager'] },
@@ -2197,6 +2485,7 @@ function HotelManager() {
           {view === 'rooms' && <RoomsView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
           {view === 'reservations' && <ReservationsView data={data} persist={persist} showToast={showToast} />}
           {view === 'stock' && <StockView data={data} persist={persist} role={currentUser.role} showToast={showToast} />}
+          {view === 'caisse' && <CaisseView data={data} persist={persist} role={currentUser.role} showToast={showToast} currentUser={currentUser} />}
           {view === 'cumuls' && <CumulsView data={data} />}
           {view === 'cloture' && currentUser.role === 'manager' && <ClotureView data={data} persist={persist} showToast={showToast} currentUser={currentUser} />}
           {view === 'users' && currentUser.role === 'manager' && <UsersView data={data} persist={persist} currentUser={currentUser} showToast={showToast} />}
