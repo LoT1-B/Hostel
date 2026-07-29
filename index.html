@@ -332,6 +332,15 @@ const STOCK_CATS = {
   boisson: { label: 'Boissons', icon: I.Wine },
   nourriture: { label: 'Nourriture', icon: I.Utensils },
 };
+const BON_CATS = {
+  boisson: { label: 'Boisson', icon: I.Wine, linkedToStock: true },
+  nourriture: { label: 'Nourriture', icon: I.Utensils, linkedToStock: false },
+};
+const BON_STATUS = {
+  ouvert: { label: 'Ouvert', color: COLORS.brass },
+  encaisse: { label: 'Encaissé', color: COLORS.teal },
+  annule: { label: 'Annulé', color: COLORS.brick },
+};
 const PERIODS = [
   { n: 7, label: 'Hebdomadaire', sub: '7 jours' },
   { n: 10, label: 'Décade', sub: '10 jours' },
