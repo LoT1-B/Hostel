@@ -40,9 +40,9 @@ def seed_demo_data():
 
     # Stock
     boissons = [
-        StockItem(name="Eau minérale", qty=60, unit="bouteilles", threshold=20, category="boisson"),
-        StockItem(name="Bière (Awooyo)", qty=8, unit="casiers", threshold=10, category="boisson"),
-        StockItem(name="Sodas", qty=30, unit="bouteilles", threshold=15, category="boisson"),
+        StockItem(name="Eau minérale", qty=60, unit="bouteilles", threshold=20, category="boisson", price=1000, cost_price=600),
+        StockItem(name="Bière (Awooyo)", qty=8, unit="casiers", threshold=10, category="boisson", price=1200, cost_price=700),
+        StockItem(name="Sodas", qty=30, unit="bouteilles", threshold=15, category="boisson", price=900, cost_price=500),
     ]
     nourritures = [
         StockItem(name="Riz", qty=25, unit="kg", threshold=10, category="nourriture"),

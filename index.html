@@ -381,7 +381,7 @@ async function api(path, opts = {}) {
 async function loadAllFromApi() {
   const [
     rooms, reservations, stockBoisson, stockNourriture,
-    users, closedDays, settings
+    users, closedDays, settings, bons
   ] = await Promise.all([
     api('/rooms').catch(() => []),
     api('/reservations').catch(() => []),
@@ -390,6 +390,7 @@ async function loadAllFromApi() {
     api('/users').catch(() => []),
     api('/closed-days').catch(() => []),
     api('/settings').catch(() => ({ hotelName: 'Villa Blanca', dayBoundary: 'midnight' })),
+    api('/bons').catch(() => []),
   ]);
   return {
     settings,
@@ -398,7 +399,7 @@ async function loadAllFromApi() {
     rooms, reservations, stockBoisson, stockNourriture,
     movements: [],
     users,
-    bons: [],
+    bons,
   };
 }
 
@@ -2344,6 +2345,16 @@ function HotelManager() {
       // Closed days
       if (next.closedDays !== prev.closedDays && next.closedDays.length > prev.closedDays.length) {
         api('/closed-days', { method: 'POST' }).catch(() => {});
+      }
+
+      // Bons (caisse)
+      if (next.bons !== prev.bons) {
+        const added = next.bons.filter(b => !prev.bons.find(p => p.id === b.id));
+        const removed = prev.bons.filter(b => !next.bons.find(p => p.id === b.id));
+        const updated = next.bons.filter(b => prev.bons.find(p => p.id === b.id && JSON.stringify(p) !== JSON.stringify(b)));
+        for (const b of removed) api(`/bons/${b.id}`, { method: 'DELETE' }).catch(() => {});
+        for (const b of added) api('/bons', { method: 'POST', body: JSON.stringify(b) }).catch(() => {});
+        for (const b of updated) api(`/bons/${b.id}`, { method: 'PUT', body: JSON.stringify(b) }).catch(() => {});
       }
 
       // Settings

@@ -54,6 +54,8 @@ def get_closed_days():
         "boissonEntrees": d.boisson_entrees, "boissonSorties": d.boisson_sorties,
         "nourritureEntrees": d.nourriture_entrees, "nourritureSorties": d.nourriture_sorties,
         "lowStockCount": d.low_stock_count,
+        "caisseEncaisse": d.caisse_encaisse, "caisseCout": d.caisse_cout,
+        "caisseBenefice": d.caisse_benefice,
         "locked": d.locked,
         "closedBy": d.closed_by,
     } for d in days])
@@ -85,6 +87,13 @@ def close_day():
     departures = Reservation.query.filter(Reservation.checkout == today).count()
     low_stock = StockItem.query.filter(StockItem.qty <= StockItem.threshold).count()
 
+    # Caisse du jour : bons encaissés
+    from backend.models import Bon
+    bons = Bon.query.filter(Bon.day == today).all()
+    encaisses = [b for b in bons if b.status == "encaisse"]
+    caisse_encaisse = sum(b.montant or 0 for b in encaisses)
+    caisse_cout = sum(b.cout or 0 for b in encaisses)
+
     closed = ClosedDay(
         day=today, closed_at=datetime.utcnow(),
         rooms_total=rooms, occupied=occupied,
@@ -94,6 +103,9 @@ def close_day():
         boisson_entrees=0, boisson_sorties=0,
         nourriture_entrees=0, nourriture_sorties=0,
         low_stock_count=low_stock,
+        caisse_encaisse=caisse_encaisse,
+        caisse_cout=caisse_cout,
+        caisse_benefice=caisse_encaisse - caisse_cout,
         locked=True,                    # ← verrouillé immédiatement
         closed_by=closed_by_username,
     )

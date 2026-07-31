@@ -7,7 +7,8 @@ stock_bp = Blueprint("stock", __name__)
 def serialize(item):
     return {
         "id": item.id, "name": item.name, "qty": item.qty,
-        "unit": item.unit, "threshold": item.threshold, "category": item.category
+        "unit": item.unit, "threshold": item.threshold, "category": item.category,
+        "price": item.price or 0, "costPrice": item.cost_price or 0,
     }
 
 @stock_bp.route("/api/stock/<category>", methods=["GET"])
@@ -25,7 +26,9 @@ def create():
     item = StockItem(
         name=data["name"], qty=data.get("qty", 0),
         unit=data["unit"], threshold=data.get("threshold", 0),
-        category=data["category"]
+        category=data["category"],
+        price=data.get("price", 0) or 0,
+        cost_price=data.get("costPrice", 0) or 0,
     )
     db.session.add(item)
     db.session.commit()
@@ -38,8 +41,8 @@ def update(item_id):
     if not item:
         return jsonify({"msg": "Article introuvable"}), 404
     data = request.get_json()
-    for field in ("name", "qty", "unit", "threshold", "category"):
-        if field in data:
+    for field in ("name", "qty", "unit", "threshold", "category", "price", "costPrice"):
+        if field in data and data[field] is not None:
             setattr(item, field, data[field])
     db.session.commit()
     return jsonify(serialize(item))

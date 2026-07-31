@@ -42,6 +42,8 @@ class StockItem(db.Model):
     unit = db.Column(db.String(20), nullable=False)
     threshold = db.Column(db.Float, nullable=False, default=0)
     category = db.Column(db.String(20), nullable=False)  # boisson, nourriture
+    price = db.Column(db.Integer, default=0)          # prix de vente unitaire (caisse)
+    cost_price = db.Column(db.Integer, default=0)     # prix d'achat unitaire (bénéfice)
 
 class Movement(db.Model):
     __tablename__ = "movements"
@@ -51,6 +53,21 @@ class Movement(db.Model):
     qty = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
     note = db.Column(db.String(200), default="")
+
+class Bon(db.Model):
+    __tablename__ = "bons"
+    id = db.Column(db.String(12), primary_key=True, default=gen_id)
+    category = db.Column(db.String(20), nullable=False)  # boisson, nourriture
+    label = db.Column(db.String(200), nullable=False)
+    items = db.Column(db.Text, default="[]")             # JSON des lignes (stockItemId, name, qty, unitPrice, unitCost)
+    montant = db.Column(db.Integer, nullable=False, default=0)
+    cout = db.Column(db.Integer, nullable=False, default=0)
+    status = db.Column(db.String(20), default="ouvert")  # ouvert, encaisse, annule
+    day = db.Column(db.Date, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.String(50), default="")
+    encaisse_at = db.Column(db.DateTime, nullable=True)
+    encaisse_by = db.Column(db.String(50), default="")
 
 class ClosedDay(db.Model):
     __tablename__ = "closed_days"
@@ -68,6 +85,9 @@ class ClosedDay(db.Model):
     nourriture_entrees = db.Column(db.Float, default=0)
     nourriture_sorties = db.Column(db.Float, default=0)
     low_stock_count = db.Column(db.Integer, default=0)
+    caisse_encaisse = db.Column(db.Integer, default=0)
+    caisse_cout = db.Column(db.Integer, default=0)
+    caisse_benefice = db.Column(db.Integer, default=0)
     locked = db.Column(db.Boolean, default=False)
     closed_by = db.Column(db.String(12), db.ForeignKey("users.id"), nullable=True)
 
