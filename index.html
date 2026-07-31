@@ -469,14 +469,14 @@ function daySnapshot(data, day) {
 function seedData() {
   const today = todayStr();
   const rooms = [
-    { id: uid(), number: '101', type: 'Simple', price: 15000, status: 'available' },
-    { id: uid(), number: '102', type: 'Simple', price: 15000, status: 'occupied' },
-    { id: uid(), number: '201', type: 'Suite', price: 35000, status: 'available' },
-    { id: uid(), number: '202', type: 'Suite', price: 35000, status: 'available' },
-    { id: uid(), number: '301', type: 'Deluxe', price: 50000, status: 'maintenance' },
+    { id: uid(), number: '101', name: 'Orchidée', type: 'Simple', price: 15000, status: 'available' },
+    { id: uid(), number: '102', name: 'Ambre', type: 'Simple', price: 15000, status: 'occupied' },
+    { id: uid(), number: '201', name: 'Océan', type: 'Suite', price: 35000, status: 'available' },
+    { id: uid(), number: '202', name: 'Lagon', type: 'Suite', price: 35000, status: 'available' },
+    { id: uid(), number: '301', name: 'Royale', type: 'Deluxe', price: 50000, status: 'maintenance' },
   ];
   const reservations = [
-    { id: uid(), guest: 'K. Amouzou', roomNumber: '102', checkin: today, checkout: addDays(today, 2), status: 'checked-in', notes: '' },
+    { id: uid(), guest: 'K. Amouzou', roomId: rooms[1].id, roomName: 'Ambre', checkin: today, checkout: addDays(today, 2), status: 'checked-in', notes: '' },
   ];
   const stockBoisson = [
     { id: uid(), name: 'Eau minérale', qty: 60, unit: 'bouteilles', threshold: 20, price: 1000, costPrice: 600 },
@@ -1155,7 +1155,7 @@ function Dashboard({ data }) {
               border: `1.5px solid ${ROOM_STATUS[r.status].color}30`,
               transition: '0.2s'
             }}>
-              <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700 }}>{r.number}</div>
+              <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700 }}>{r.name || r.number}</div>
               <div style={{ fontSize: '9px', color: COLORS.slate }}>{r.type}</div>
               <div style={{ marginTop: '6px', display: 'inline-block', padding: '1px 10px', borderRadius: '40px', fontSize: '9px', fontWeight: 500,
                 background: ROOM_STATUS[r.status].color, color: 'white' }}>{ROOM_STATUS[r.status].label}</div>
@@ -1196,16 +1196,24 @@ function Dashboard({ data }) {
 function RoomsView({ data, persist, role, showToast }) {
   const [modal, setModal] = useState(null);
   const canManage = role === 'manager';
-  const [draft, setDraft] = useState({ number: '', type: 'Simple', price: 15000, status: 'available' });
+  const [draft, setDraft] = useState({ number: '', name: '', type: 'Simple', price: 15000, status: 'available' });
 
-  useEffect(() => { if (modal) setDraft(modal.room || { number: '', type: 'Simple', price: 15000, status: 'available' }); }, [modal]);
+  useEffect(() => {
+    if (modal) setDraft(modal.room || { number: '', name: '', type: 'Simple', price: 15000, status: 'available' });
+  }, [modal]);
 
   const save = async () => {
-    if (!draft.number.trim()) { showToast('Le numéro de chambre est requis.', 'error'); return; }
+    if (!draft.name.trim()) { showToast('Le nom de la chambre est requis.', 'error'); return; }
     const price = Number(draft.price);
-    let rooms;
-    if (modal.mode === 'add') rooms = [...data.rooms, { ...draft, id: uid(), price }];
-    else rooms = data.rooms.map(r => r.id === modal.room.id ? { ...draft, price } : r);
+    const room = {
+      ...draft,
+      id: modal.mode === 'add' ? uid() : modal.room.id,
+      number: modal.mode === 'add' ? (draft.number.trim() || draft.name.trim()) : draft.number,
+      price,
+    };
+    const rooms = modal.mode === 'add'
+      ? [...data.rooms, room]
+      : data.rooms.map(r => r.id === modal.room.id ? room : r);
     await persist({ ...data, rooms });
     showToast(modal.mode === 'add' ? 'Chambre ajoutée.' : 'Chambre modifiée.');
     setModal(null);
@@ -1220,9 +1228,9 @@ function RoomsView({ data, persist, role, showToast }) {
         </div>
         {canManage && <button onClick={() => setModal({ mode: 'add', room: null })} className="btn btn-primary"><I.Plus size={16} /> Ajouter</button>}
       </div>
-      <Table headers={['N°', 'Type', 'Prix', 'Statut', ...(canManage ? ['Actions'] : [])]} rows={data.rooms.map(r => ({
+      <Table headers={['Nom', 'Type', 'Prix', 'Statut', ...(canManage ? ['Actions'] : [])]} rows={data.rooms.map(r => ({
         id: r.id, cells: [
-          <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>{r.number}</span>,
+          <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>{r.name || r.number}</span>,
           <span>{r.type}</span>,
           <span style={{ fontWeight: 600, color: COLORS.brass }}>{formatCurrency(r.price)}</span>,
           <span className="tag" style={{ background: ROOM_STATUS[r.status].color, color: 'white' }}>{ROOM_STATUS[r.status].label}</span>,
@@ -1236,7 +1244,7 @@ function RoomsView({ data, persist, role, showToast }) {
       }))} />
       {modal && (
         <Modal title={modal.mode === 'add' ? 'Nouvelle chambre' : 'Modifier la chambre'} onClose={() => setModal(null)}>
-          <Field label="Numéro"><input className="input" value={draft.number} onChange={e => setDraft({ ...draft, number: e.target.value })} placeholder="Ex: 401" /></Field>
+          <Field label="Nom de la chambre"><input className="input" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="Ex: Orchidée" /></Field>
           <Field label="Type"><input className="input" value={draft.type} onChange={e => setDraft({ ...draft, type: e.target.value })} placeholder="Simple, Suite…" /></Field>
           <Field label="Prix"><input type="number" className="input" value={draft.price} onChange={e => setDraft({ ...draft, price: e.target.value })} /></Field>
           <Field label="Statut">
@@ -1261,26 +1269,32 @@ const RES_STATUS = {
 // ----- RESERVATIONS VIEW -----
 function ReservationsView({ data, persist, showToast }) {
   const [modal, setModal] = useState(false);
-  const [draft, setDraft] = useState({ guest: '', roomNumber: data.rooms[0]?.number || '', checkin: data.currentDay, checkout: data.currentDay, notes: '' });
+  const getRoomName = (roomId) => (data.rooms.find(r => r.id === roomId) || {}).name || '';
+  const defaultRoom = data.rooms[0] || { id: '', name: '' };
+  const [draft, setDraft] = useState({ guest: '', roomId: defaultRoom.id, roomName: defaultRoom.name, checkin: data.currentDay, checkout: data.currentDay, notes: '' });
 
   const createReservation = async () => {
-    if (!draft.guest.trim() || !draft.roomNumber) { showToast('Nom du client et chambre requis.', 'error'); return; }
-    await persist({ ...data, reservations: [...data.reservations, { ...draft, id: uid(), status: 'booked' }] });
+    if (!draft.guest.trim() || !draft.roomId) { showToast('Nom du client et chambre requis.', 'error'); return; }
+    const roomName = getRoomName(draft.roomId);
+    await persist({ ...data, reservations: [...data.reservations, { ...draft, id: uid(), roomName, status: 'booked' }] });
     showToast('Réservation créée.');
     setModal(false);
-    setDraft({ guest: '', roomNumber: data.rooms[0]?.number || '', checkin: data.currentDay, checkout: data.currentDay, notes: '' });
+    const nextRoom = data.rooms[0] || { id: '', name: '' };
+    setDraft({ guest: '', roomId: nextRoom.id, roomName: nextRoom.name, checkin: data.currentDay, checkout: data.currentDay, notes: '' });
   };
   const checkIn = async (res) => {
+    const roomName = getRoomName(res.roomId);
     await persist({ ...data,
       reservations: data.reservations.map(r => r.id === res.id ? { ...r, status: 'checked-in' } : r),
-      rooms: data.rooms.map(rm => rm.number === res.roomNumber ? { ...rm, status: 'occupied' } : rm) });
-    showToast(`${res.guest} enregistré(e) en chambre ${res.roomNumber}.`);
+      rooms: data.rooms.map(rm => rm.id === res.roomId ? { ...rm, status: 'occupied' } : rm) });
+    showToast(`${res.guest} enregistré(e) en chambre ${roomName}.`);
   };
   const checkOut = async (res) => {
+    const roomName = getRoomName(res.roomId);
     await persist({ ...data,
       reservations: data.reservations.map(r => r.id === res.id ? { ...r, status: 'checked-out' } : r),
-      rooms: data.rooms.map(rm => rm.number === res.roomNumber ? { ...rm, status: 'available' } : rm) });
-    showToast(`Chambre ${res.roomNumber} libérée.`);
+      rooms: data.rooms.map(rm => rm.id === res.roomId ? { ...rm, status: 'available' } : rm) });
+    showToast(`Chambre ${roomName} libérée.`);
   };
   const cancel = async (res) => { await persist({ ...data, reservations: data.reservations.map(r => r.id === res.id ? { ...r, status: 'cancelled' } : r) }); showToast('Réservation annulée.'); };
 
@@ -1294,31 +1308,37 @@ function ReservationsView({ data, persist, showToast }) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {data.reservations.length === 0 && <div style={{ fontSize: '14px', color: COLORS.slate }}>Aucune réservation.</div>}
-        {data.reservations.slice().reverse().map(r => (
-          <div key={r.id} className="glass reservation-card" style={{ padding: '16px 20px', borderRadius: '16px' }}>
-            <div>
-              <div style={{ fontWeight: 600 }}>{r.guest}</div>
-              <div style={{ fontSize: '12px', color: COLORS.slate, marginTop: '2px' }}>
-                Chambre {r.roomNumber} · {formatDate(r.checkin)} → {formatDate(r.checkout)}
+        {data.reservations.slice().reverse().map(r => {
+          const roomName = r.roomName || getRoomName(r.roomId);
+          return (
+            <div key={r.id} className="glass reservation-card" style={{ padding: '16px 20px', borderRadius: '16px' }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{r.guest}</div>
+                <div style={{ fontSize: '12px', color: COLORS.slate, marginTop: '2px' }}>
+                  Chambre {roomName} · {formatDate(r.checkin)} → {formatDate(r.checkout)}
+                </div>
+              </div>
+              <div className="reservation-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className="tag" style={{ background: RES_STATUS[r.status].color, color: 'white' }}>{RES_STATUS[r.status].label}</span>
+                {r.status === 'booked' && (<>
+                  <button onClick={() => checkIn(r)} className="btn btn-success" style={{ padding: '6px 12px', fontSize: '12px' }}><I.DoorOpen size={13} /> Check-in</button>
+                  <button onClick={() => cancel(r)} className="btn-ghost" style={{ fontSize: '12px', color: COLORS.brick, padding: '6px 10px', background: 'rgba(185,28,28,0.08)' }}>Annuler</button>
+                </>)}
+                {r.status === 'checked-in' && <button onClick={() => checkOut(r)} className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '12px' }}><I.DoorClosed size={13} /> Check-out</button>}
               </div>
             </div>
-            <div className="reservation-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="tag" style={{ background: RES_STATUS[r.status].color, color: 'white' }}>{RES_STATUS[r.status].label}</span>
-              {r.status === 'booked' && (<>
-                <button onClick={() => checkIn(r)} className="btn btn-success" style={{ padding: '6px 12px', fontSize: '12px' }}><I.DoorOpen size={13} /> Check-in</button>
-                <button onClick={() => cancel(r)} className="btn-ghost" style={{ fontSize: '12px', color: COLORS.brick, padding: '6px 10px', background: 'rgba(185,28,28,0.08)' }}>Annuler</button>
-              </>)}
-              {r.status === 'checked-in' && <button onClick={() => checkOut(r)} className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '12px' }}><I.DoorClosed size={13} /> Check-out</button>}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {modal && (
         <Modal title="Nouvelle réservation" onClose={() => setModal(false)}>
           <Field label="Nom du client"><input className="input" value={draft.guest} onChange={e => setDraft({ ...draft, guest: e.target.value })} /></Field>
           <Field label="Chambre">
-            <select className="input" value={draft.roomNumber} onChange={e => setDraft({ ...draft, roomNumber: e.target.value })}>
-              {data.rooms.map(r => <option key={r.id} value={r.number}>{r.number} — {r.type}</option>)}
+            <select className="input" value={draft.roomId} onChange={e => {
+              const value = e.target.value;
+              setDraft({ ...draft, roomId: value, roomName: getRoomName(value) });
+            }}>
+              {data.rooms.map(r => <option key={r.id} value={r.id}>{r.name || r.number} — {r.type}</option>)}
             </select>
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -2301,7 +2321,7 @@ function HotelManager() {
         const removed = prev.reservations.filter(r => !next.reservations.find(p => p.id === r.id));
         const updated = next.reservations.filter(r => prev.reservations.find(p => p.id === r.id && JSON.stringify(p) !== JSON.stringify(r)));
         for (const r of removed) api(`/reservations/${r.id}`, { method: 'DELETE' }).catch(() => {});
-        for (const r of added) api('/reservations', { method: 'POST', body: JSON.stringify({ ...r, roomId: r.roomId || (prev.rooms.find(pr => pr.number === r.roomNumber) || {}).id }) }).catch(() => {});
+        for (const r of added) api('/reservations', { method: 'POST', body: JSON.stringify({ ...r, roomId: r.roomId || (prev.rooms.find(pr => pr.name === r.roomName || pr.number === r.roomNumber) || {}).id }) }).catch(() => {});
         for (const r of updated) api(`/reservations/${r.id}`, { method: 'PUT', body: JSON.stringify(r) }).catch(() => {});
       }
 
