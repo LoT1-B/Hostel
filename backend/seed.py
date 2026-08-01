@@ -20,11 +20,11 @@ def seed_demo_data():
 
     # Rooms
     rooms = [
-        Room(number="101", type="Simple", price=15000, status="available"),
-        Room(number="102", type="Simple", price=15000, status="occupied"),
-        Room(number="201", type="Suite", price=35000, status="available"),
-        Room(number="202", type="Suite", price=35000, status="available"),
-        Room(number="301", type="Deluxe", price=50000, status="maintenance"),
+        Room(number="101", name="Orchidée", type="Simple", price=15000, status="available"),
+        Room(number="102", name="Ambre", type="Simple", price=15000, status="occupied"),
+        Room(number="201", name="Océan", type="Suite", price=35000, status="available"),
+        Room(number="202", name="Lagon", type="Suite", price=35000, status="available"),
+        Room(number="301", name="Royale", type="Deluxe", price=50000, status="maintenance"),
     ]
     db.session.add_all(rooms)
     db.session.flush()

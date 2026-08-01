@@ -19,6 +19,7 @@ class Room(db.Model):
     __tablename__ = "rooms"
     id = db.Column(db.String(12), primary_key=True, default=gen_id)
     number = db.Column(db.String(10), nullable=False)
+    name = db.Column(db.String(100), default="")  # nom de la chambre (ex: Orchidée)
     type = db.Column(db.String(30), nullable=False)  # Simple, Suite, Deluxe
     price = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(20), default="available")  # available, occupied, maintenance

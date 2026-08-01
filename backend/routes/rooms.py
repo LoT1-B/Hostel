@@ -9,7 +9,7 @@ rooms_bp = Blueprint("rooms", __name__)
 def get_rooms():
     rooms = Room.query.order_by(Room.number).all()
     return jsonify([{
-        "id": r.id, "number": r.number, "type": r.type,
+        "id": r.id, "number": r.number, "name": r.name or "", "type": r.type,
         "price": r.price, "status": r.status
     } for r in rooms])
 
@@ -20,7 +20,7 @@ def get_room(room_id):
     if not r:
         return jsonify({"msg": "Chambre introuvable"}), 404
     return jsonify({
-        "id": r.id, "number": r.number, "type": r.type,
+        "id": r.id, "number": r.number, "name": r.name or "", "type": r.type,
         "price": r.price, "status": r.status
     })
 
@@ -31,13 +31,13 @@ def create_room():
     if not data:
         return jsonify({"msg": "Données requises"}), 400
     room = Room(
-        number=data["number"], type=data["type"],
+        number=data["number"], name=data.get("name", ""), type=data["type"],
         price=data["price"], status=data.get("status", "available")
     )
     db.session.add(room)
     db.session.commit()
-    return jsonify({"id": room.id, "number": room.number, "type": room.type,
-                    "price": room.price, "status": room.status}), 201
+    return jsonify({"id": room.id, "number": room.number, "name": room.name or "",
+                    "type": room.type, "price": room.price, "status": room.status}), 201
 
 @rooms_bp.route("/api/rooms/<room_id>", methods=["PUT"])
 @jwt_required()
@@ -46,12 +46,12 @@ def update_room(room_id):
     if not r:
         return jsonify({"msg": "Chambre introuvable"}), 404
     data = request.get_json()
-    for field in ("number", "type", "price", "status"):
+    for field in ("number", "name", "type", "price", "status"):
         if field in data:
             setattr(r, field, data[field])
     db.session.commit()
-    return jsonify({"id": r.id, "number": r.number, "type": r.type,
-                    "price": r.price, "status": r.status})
+    return jsonify({"id": r.id, "number": r.number, "name": r.name or "",
+                    "type": r.type, "price": r.price, "status": r.status})
 
 @rooms_bp.route("/api/rooms/<room_id>", methods=["DELETE"])
 @jwt_required()

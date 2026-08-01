@@ -58,19 +58,43 @@ def _migrate(app):
     with app.app_context():
         insp = inspect(db.engine)
         for table, cols in {
-            "closed_days": ("caisse_encaisse", "caisse_cout", "caisse_benefice"),
-            "stock_items": ("price", "cost_price"),
+            "closed_days": {
+                "caisse_encaisse": "INTEGER DEFAULT 0",
+                "caisse_cout": "INTEGER DEFAULT 0",
+                "caisse_benefice": "INTEGER DEFAULT 0",
+            },
+            "stock_items": {
+                "price": "INTEGER DEFAULT 0",
+                "cost_price": "INTEGER DEFAULT 0",
+            },
+            "rooms": {
+                "name": "VARCHAR(100) DEFAULT ''",
+            },
         }.items():
             if table not in insp.get_table_names():
                 continue
             existing = {c["name"] for c in insp.get_columns(table)}
-            for col in cols:
+            for col, sql in cols.items():
                 if col not in existing:
                     db.session.execute(text(
-                        f"ALTER TABLE {table} ADD COLUMN {col} INTEGER DEFAULT 0"
+                        f"ALTER TABLE {table} ADD COLUMN {col} {sql}"
                     ))
         db.session.commit()
         _backfill_prices()
+        _backfill_room_names()
+
+
+def _backfill_room_names():
+    """Base existante : donne un nom aux chambres démo qui n'en ont pas (aligné sur le front)."""
+    from sqlalchemy import text
+    defaults = {
+        "101": "Orchidée", "102": "Ambre", "201": "Océan", "202": "Lagon", "301": "Royale",
+    }
+    for number, name in defaults.items():
+        db.session.execute(text(
+            "UPDATE rooms SET name=:n WHERE number=:num AND (name IS NULL OR name = '')"
+        ), {"n": name, "num": number})
+    db.session.commit()
 
 
 def _backfill_prices():
