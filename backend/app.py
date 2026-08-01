@@ -69,6 +69,7 @@ def _migrate(app):
             },
             "rooms": {
                 "name": "VARCHAR(100) DEFAULT ''",
+                "archived": "BOOLEAN DEFAULT 0",
             },
         }.items():
             if table not in insp.get_table_names():

@@ -1,6 +1,5 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from sqlalchemy.exc import IntegrityError
 from backend.models import db, Room, Reservation
 
 rooms_bp = Blueprint("rooms", __name__)
@@ -8,7 +7,7 @@ rooms_bp = Blueprint("rooms", __name__)
 @rooms_bp.route("/api/rooms", methods=["GET"])
 @jwt_required()
 def get_rooms():
-    rooms = Room.query.order_by(Room.number).all()
+    rooms = Room.query.filter(db.or_(Room.archived.is_(None), Room.archived == False)).order_by(Room.number).all()
     return jsonify([{
         "id": r.id, "number": r.number, "name": r.name or "", "type": r.type,
         "price": r.price, "status": r.status
@@ -17,7 +16,10 @@ def get_rooms():
 @rooms_bp.route("/api/rooms/<room_id>", methods=["GET"])
 @jwt_required()
 def get_room(room_id):
-    r = Room.query.get(room_id)
+    r = Room.query.filter(
+        Room.id == room_id,
+        db.or_(Room.archived.is_(None), Room.archived == False)
+    ).first()
     if not r:
         return jsonify({"msg": "Chambre introuvable"}), 404
     return jsonify({
@@ -66,13 +68,8 @@ def delete_room(room_id):
     ).all()
     if active:
         return jsonify({"msg": "Chambre avec des réservations actives. Annulez ou libérez d'abord."}), 409
-    # Supprimer l'historique (terminé/annulé) lié à la chambre, sinon la FK bloque le DELETE
-    for res in Reservation.query.filter(Reservation.room_id == room_id).all():
-        db.session.delete(res)
-    db.session.delete(r)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"msg": "Impossible de supprimer : données liées."}), 409
+    # Soft delete : on archive la chambre (elle disparaît de l'UI) mais on garde
+    # la ligne + l'historique des réservations pour la traçabilité.
+    r.archived = True
+    db.session.commit()
     return jsonify({"msg": "Chambre supprimée"})

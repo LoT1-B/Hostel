@@ -23,6 +23,7 @@ class Room(db.Model):
     type = db.Column(db.String(30), nullable=False)  # Simple, Suite, Deluxe
     price = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(20), default="available")  # available, occupied, maintenance
+    archived = db.Column(db.Boolean, default=False)  # soft delete : garde l'historique des résas
 
 class Reservation(db.Model):
     __tablename__ = "reservations"
