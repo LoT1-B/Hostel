@@ -7,7 +7,7 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.471.0/dist/umd/lucide.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -253,9 +253,19 @@ const COLORS = {
 
 const BACKGROUND_IMAGES = Array.from({ length: 30 }, (_, index) => `images/image${String(index + 1).padStart(2, '0')}.jpg`);
 
+const renderIconSvg = (icon, size) => {
+  try {
+    if (typeof lucide !== 'undefined' && typeof lucide.createElement === 'function') {
+      const el = lucide.createElement(icon, { width: size, height: size });
+      return el && el.outerHTML ? el.outerHTML : '';
+    }
+    return icon && typeof icon.toSvg === 'function' ? icon.toSvg(size) : '';
+  } catch (e) { return ''; }
+};
+
 const Icon = ({ icon, size = 18, style = {} }) =>
   React.createElement('span', {
-    dangerouslySetInnerHTML: { __html: icon && icon.toSvg ? icon.toSvg(size) : '' },
+    dangerouslySetInnerHTML: { __html: renderIconSvg(icon, size) },
     style: { display: 'inline-flex', verticalAlign: 'middle', ...style }
   });
 
