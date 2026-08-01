@@ -1228,7 +1228,14 @@ function RoomsView({ data, persist, role, showToast }) {
     showToast(modal.mode === 'add' ? 'Chambre ajoutée.' : 'Chambre modifiée.');
     setModal(null);
   };
-  const remove = async (room) => { await persist({ ...data, rooms: data.rooms.filter(r => r.id !== room.id) }); showToast('Chambre supprimée.'); };
+  const remove = async (room) => {
+    if (_apiToken) {
+      try { await api(`/rooms/${room.id}`, { method: 'DELETE' }); }
+      catch (e) { showToast(e.message || 'Suppression impossible.', 'error'); return; }
+    }
+    await persist({ ...data, rooms: data.rooms.filter(r => r.id !== room.id) });
+    showToast('Chambre supprimée.');
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

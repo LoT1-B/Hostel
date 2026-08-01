@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from backend.models import db, Room
+from sqlalchemy.exc import IntegrityError
+from backend.models import db, Room, Reservation
 
 rooms_bp = Blueprint("rooms", __name__)
 
@@ -59,6 +60,19 @@ def delete_room(room_id):
     r = Room.query.get(room_id)
     if not r:
         return jsonify({"msg": "Chambre introuvable"}), 404
+    active = Reservation.query.filter(
+        Reservation.room_id == room_id,
+        Reservation.status.in_(["pending", "checked-in"]),
+    ).all()
+    if active:
+        return jsonify({"msg": "Chambre avec des réservations actives. Annulez ou libérez d'abord."}), 409
+    # Supprimer l'historique (terminé/annulé) lié à la chambre, sinon la FK bloque le DELETE
+    for res in Reservation.query.filter(Reservation.room_id == room_id).all():
+        db.session.delete(res)
     db.session.delete(r)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": "Impossible de supprimer : données liées."}), 409
     return jsonify({"msg": "Chambre supprimée"})
