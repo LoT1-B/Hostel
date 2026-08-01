@@ -57,6 +57,8 @@ def _migrate(app):
     from sqlalchemy import inspect, text
     with app.app_context():
         insp = inspect(db.engine)
+        # Postgres exige DEFAULT false pour un BOOLEAN (SQLite tolère 0)
+        bool_default = "false" if db.engine.dialect.name == "postgresql" else "0"
         for table, cols in {
             "closed_days": {
                 "caisse_encaisse": "INTEGER DEFAULT 0",
@@ -69,7 +71,7 @@ def _migrate(app):
             },
             "rooms": {
                 "name": "VARCHAR(100) DEFAULT ''",
-                "archived": "BOOLEAN DEFAULT 0",
+                "archived": f"BOOLEAN DEFAULT {bool_default}",
             },
         }.items():
             if table not in insp.get_table_names():
