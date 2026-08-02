@@ -312,6 +312,7 @@ const I = {
   Ban: createIcon(lucide.Ban),
   Calendar: createIcon(lucide.Calendar),
   FileDown: createIcon(lucide.FileDown),
+  Archive: createIcon(lucide.Archive),
   Settings: createIcon(lucide.Settings),
   RotateCcw: createIcon(lucide.RotateCcw),
 };
@@ -2124,6 +2125,140 @@ function ClotureView({ data, persist, showToast, currentUser }) {
   );
 }
 
+
+// ----- ARCHIVES VIEW -----
+function ArchivesView({ role, currentUser, showToast }) {
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [archModal, setArchModal] = useState(false);
+  const [reopenMonth, setReopenMonth] = useState(null);
+  const [reason, setReason] = useState('');
+  const isManager = role === 'manager';
+
+  const load = async () => {
+    try { setList(await api('/archives')); }
+    catch (e) { showToast(e.message, 'error'); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  // mois précédent (celui qu'on archive par défaut)
+  const dd = new Date();
+  const ym = dd.getMonth() === 0 ? { y: dd.getFullYear() - 1, m: 12 } : { y: dd.getFullYear(), m: dd.getMonth() };
+  const targetMonth = `${ym.y}-${String(ym.m).padStart(2, '0')}`;
+
+  const archiveMonth = async () => {
+    try {
+      await api('/archives', { method: 'POST', body: JSON.stringify({ month: targetMonth }) });
+      showToast(`Mois ${targetMonth} archivé et figé.`);
+      setArchModal(false); load();
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+  const reopenMonthFn = async () => {
+    try {
+      await api(`/archives/${reopenMonth}/reopen`, { method: 'POST', body: JSON.stringify({ reason }) });
+      showToast(`Mois ${reopenMonth} ré-ouvert — corrections possibles.`);
+      setReopenMonth(null); setReason(''); load();
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+  const closeMonth = async (month) => {
+    try {
+      await api(`/archives/${month}/close`, { method: 'POST' });
+      showToast(`Mois ${month} re-archivé (nouvelle version).`);
+      load();
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+  const printPDF = async (month) => {
+    try {
+      const res = await fetch(API_BASE + '/archives/' + month + '/pdf', { headers: { Authorization: `Bearer ${_apiToken}` } });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.msg || 'Impossible de générer le PDF'); }
+      const html = await res.text();
+      const w = window.open('', '_blank');
+      if (!w) { showToast('Autorisez les fenêtres pop-up pour imprimer.', 'error'); return; }
+      w.document.write(html); w.document.close();
+      setTimeout(() => w.print(), 400);
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 700 }}>Archives</span>
+          <div style={{ fontSize: '13px', color: COLORS.slate, marginTop: '2px' }}>
+            Les mois archivés sont <b>figés</b> : toute réservation, bon ou clôture daté du mois est refusé. Le manager peut ré-ouvrir pour corriger.
+          </div>
+        </div>
+        {isManager && (
+          <button onClick={() => setArchModal(true)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <I.Plus size={16} /> Archiver un mois
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div style={{ color: COLORS.slate, fontSize: '13px', padding: '12px' }}>Chargement…</div>
+      ) : list.length === 0 ? (
+        <div className="glass" style={{ padding: '28px', borderRadius: '24px', textAlign: 'center', color: COLORS.slate, fontSize: '13px' }}>
+          Aucun mois archivé. {isManager ? <>Cliquez sur « Archiver un mois » une fois le mois passé terminé.</> : <>Vérifiez auprès du manager pour archiver.</>}
+        </div>
+      ) : (
+        <div className="glass" style={{ padding: '20px', borderRadius: '24px', overflow: 'hidden' }}>
+          <Table headers={['Mois', 'Statut', 'Version', 'Archivé le', 'Par', 'Actions']}
+            rows={list.map(a => ({
+              id: a.month,
+              cells: [
+                <span style={{ fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif' }}>{a.month}</span>,
+                a.status === 'frozen' ? (
+                  <span className="tag" style={{ background: COLORS.teal, color: 'white', fontSize: '10px' }}>Figé</span>
+                ) : (
+                  <span className="tag" style={{ background: COLORS.brass, color: 'white', fontSize: '10px' }}>Ré-ouvert</span>
+                ),
+                <span>v{a.version}</span>,
+                <span style={{ fontSize: '12px', color: COLORS.slate }}>{a.createdAt ? formatDate(a.createdAt.slice(0, 10)) : '—'}</span>,
+                <span style={{ fontSize: '12px', color: COLORS.slate }}>{a.createdBy || '—'}</span>,
+                <span style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                  <button onClick={() => printPDF(a.month)} className="btn-ghost" style={{ fontSize: '11px' }}><I.FileDown size={13} /> Imprimer</button>
+                  {isManager && a.status === 'frozen' && (
+                    <button onClick={() => { setReopenMonth(a.month); setReason(''); }} className="btn-ghost" style={{ fontSize: '11px', color: COLORS.brick }}><I.RotateCcw size={13} /> Ré-ouvrir</button>
+                  )}
+                  {isManager && a.status === 'active' && (
+                    <button onClick={() => closeMonth(a.month)} className="btn-ghost" style={{ fontSize: '11px', color: COLORS.brass }}><I.CheckCircle2 size={13} /> Re-archiver</button>
+                  )}
+                </span>
+              ]
+            }))} />
+        </div>
+      )}
+
+      {archModal && (
+        <Modal title="Archiver un mois" onClose={() => setArchModal(false)}>
+          <div style={{ fontSize: '13px', lineHeight: 1.6, marginBottom: '16px' }}>
+            Le mois <strong style={{ color: COLORS.ink }}>{targetMonth}</strong> (mois précédent) sera <strong>archivé et figé</strong> : toute écriture datée de ce mois (réservation, bon, clôture) sera refusée.<br />
+            <span style={{ color: COLORS.slate }}>Voulez-vous continuer ?</span>
+          </div>
+          <button onClick={archiveMonth} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', gap: '8px' }}>
+            <I.Lock size={16} /> Archiver et figer {targetMonth}
+          </button>
+        </Modal>
+      )}
+
+      {reopenMonth && (
+        <Modal title={`Ré-ouvrir ${reopenMonth}`} onClose={() => setReopenMonth(null)}>
+          <div style={{ fontSize: '13px', lineHeight: 1.5, marginBottom: '12px', color: COLORS.slate }}>
+            Débloque les écritures de ce mois pour permettre une correction. Pensez à le <b style={{ color: COLORS.ink }}>re-archiver</b> ensuite.
+          </div>
+          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motif de la ré-ouverture (optionnel)"
+            style={{ width: '100%', padding: '10px 12px', borderRadius: '12px', border: '1px solid #cbd5e1', marginBottom: '14px', background: '#fff' }} />
+          <button onClick={reopenMonthFn} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', gap: '8px' }}>
+            <I.RotateCcw size={16} /> Ré-ouvrir le mois
+          </button>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // ----- USERS VIEW -----
 function UsersView({ data, persist, currentUser, showToast }) {
   const [modal, setModal] = useState(false);
@@ -2501,6 +2636,7 @@ function HotelManager() {
     { key: 'caisse', label: 'Caisse', icon: I.Wallet, roles: ['manager', 'reception'] },
     { key: 'cumuls', label: 'Cumuls', icon: I.ClipboardList, roles: ['manager'] },
     { key: 'cloture', label: 'Clôture', icon: I.Lock, roles: ['manager'] },
+    { key: 'archives', label: 'Archives', icon: I.Archive, roles: ['manager', 'reception'] },
     { key: 'users', label: 'Utilisateurs', icon: I.Users, roles: ['manager'] },
     { key: 'settings', label: 'Paramètres', icon: I.Settings, roles: ['manager', 'reception'] },
   ];
@@ -2587,6 +2723,7 @@ function HotelManager() {
           {view === 'caisse' && <CaisseView data={data} persist={persist} role={currentUser.role} showToast={showToast} currentUser={currentUser} />}
           {view === 'cumuls' && <CumulsView data={data} />}
           {view === 'cloture' && currentUser.role === 'manager' && <ClotureView data={data} persist={persist} showToast={showToast} currentUser={currentUser} />}
+          {view === 'archives' && <ArchivesView role={currentUser.role} currentUser={currentUser} showToast={showToast} />}
           {view === 'users' && currentUser.role === 'manager' && <UsersView data={data} persist={persist} currentUser={currentUser} showToast={showToast} />}
           {view === 'settings' && <SettingsView data={data} persist={persist} currentUser={currentUser} showToast={showToast} />}
         </div>
