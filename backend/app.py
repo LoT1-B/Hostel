@@ -82,6 +82,14 @@ def _migrate(app):
                     db.session.execute(text(
                         f"ALTER TABLE {table} ADD COLUMN {col} {sql}"
                     ))
+        # Postgres : élargit les VARCHAR trop courts (10 → 100) pour accepter les noms
+        # de chambre longs (ex: "B2A (passe)"). SQLite n'applique pas la longueur → rien.
+        if db.engine.dialect.name == "postgresql":
+            for table, col in (("rooms", "number"), ("reservations", "room_number")):
+                if table in insp.get_table_names():
+                    db.session.execute(text(
+                        f"ALTER TABLE {table} ALTER COLUMN {col} TYPE VARCHAR(100)"
+                    ))
         db.session.commit()
         _backfill_prices()
         _backfill_room_names()

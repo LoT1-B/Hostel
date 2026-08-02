@@ -18,7 +18,7 @@ class User(db.Model):
 class Room(db.Model):
     __tablename__ = "rooms"
     id = db.Column(db.String(12), primary_key=True, default=gen_id)
-    number = db.Column(db.String(10), nullable=False)
+    number = db.Column(db.String(100), nullable=False)
     name = db.Column(db.String(100), default="")  # nom de la chambre (ex: Orchidée)
     type = db.Column(db.String(30), nullable=False)  # Simple, Suite, Deluxe
     price = db.Column(db.Integer, nullable=False)
@@ -30,7 +30,7 @@ class Reservation(db.Model):
     id = db.Column(db.String(12), primary_key=True, default=gen_id)
     guest = db.Column(db.String(100), nullable=False)
     room_id = db.Column(db.String(12), db.ForeignKey("rooms.id"), nullable=False)
-    room_number = db.Column(db.String(10), nullable=False)
+    room_number = db.Column(db.String(100), nullable=False)
     checkin = db.Column(db.Date, nullable=False)
     checkout = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default="pending")  # pending, checked-in, checked-out, cancelled
