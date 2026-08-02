@@ -11,6 +11,7 @@ from backend.routes.stock import stock_bp
 from backend.routes.users import users_bp
 from backend.routes.data import data_bp
 from backend.routes.bons import bons_bp
+from backend.routes.archives import archives_bp
 from backend.seed import seed_demo_data
 
 def create_app():
@@ -37,6 +38,7 @@ def create_app():
     app.register_blueprint(users_bp)
     app.register_blueprint(data_bp)
     app.register_blueprint(bons_bp)
+    app.register_blueprint(archives_bp)
 
     # Health check
     @app.route("/api/health")

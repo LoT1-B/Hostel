@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import date, datetime
 from backend.models import db, Bon, User
+from backend.archive_service import guard_date
 
 bons_bp = Blueprint("bons", __name__)
 
@@ -96,6 +97,10 @@ def create_bon():
     if not day:
         return jsonify({"msg": "Date du bon invalide"}), 400
 
+    resp = guard_date(day)
+    if resp:
+        return resp
+
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     created_by = user.username if user else data.get("createdBy", "")
@@ -142,6 +147,10 @@ def update_bon(bon_id):
         return jsonify({"msg": "Bon introuvable"}), 404
     data = request.get_json() or {}
 
+    resp = guard_date(bon.day)
+    if resp:
+        return resp
+
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     username = user.username if user else data.get("encaisseBy", "")
@@ -161,6 +170,9 @@ def update_bon(bon_id):
     if "day" in data:
         d = parse_day(data["day"])
         if d:
+            resp = guard_date(d)
+            if resp:
+                return resp
             bon.day = d
     if "items" in data:
         items = data["items"]
@@ -181,6 +193,9 @@ def delete_bon(bon_id):
     bon = Bon.query.get(bon_id)
     if not bon:
         return jsonify({"msg": "Bon introuvable"}), 404
+    resp = guard_date(bon.day)
+    if resp:
+        return resp
     db.session.delete(bon)
     db.session.commit()
     return jsonify({"msg": "Bon supprimé"})

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from datetime import date, datetime
 from backend.models import db, Reservation, Room
+from backend.archive_service import guard_date
 
 reservations_bp = Blueprint("reservations", __name__)
 
@@ -39,10 +40,17 @@ def create():
     if not room:
         return jsonify({"msg": "Chambre introuvable"}), 404
 
+    checkin = date.fromisoformat(data["checkin"])
+    checkout = date.fromisoformat(data["checkout"])
+    # Un mois archivé/figé est lecture seule : interdire d'y créer une réservation
+    resp = guard_date(checkin)
+    if resp:
+        return resp
+
     res = Reservation(
         guest=data["guest"], room_id=room.id, room_number=room.number,
-        checkin=date.fromisoformat(data["checkin"]),
-        checkout=date.fromisoformat(data["checkout"]),
+        checkin=checkin,
+        checkout=checkout,
         status=data.get("status", "pending"),
         notes=data.get("notes", "")
     )
@@ -61,6 +69,16 @@ def update(res_id):
     if not r:
         return jsonify({"msg": "Réservation introuvable"}), 404
     data = request.get_json()
+
+    # Si la réservation (ou son checkin) tombe dans un mois archivé → refus
+    resp = guard_date(r.checkin)
+    if resp:
+        return resp
+    if "checkin" in data and data["checkin"]:
+        resp = guard_date(date.fromisoformat(data["checkin"]))
+        if resp:
+            return resp
+
     old_status = r.status
     for field in ("guest", "notes", "status"):
         if field in data:
@@ -94,6 +112,9 @@ def delete(res_id):
     r = Reservation.query.get(res_id)
     if not r:
         return jsonify({"msg": "Réservation introuvable"}), 404
+    resp = guard_date(r.checkin)
+    if resp:
+        return resp
     db.session.delete(r)
     db.session.commit()
     return jsonify({"msg": "Réservation supprimée"})

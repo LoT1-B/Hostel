@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import date, datetime
 from backend.models import db, ClosedDay, Room, Reservation, StockItem, Setting
+from backend.archive_service import guard_date
 
 data_bp = Blueprint("data", __name__)
 
@@ -64,12 +65,8 @@ def get_closed_days():
 @jwt_required()
 def close_day():
     """Ferme la journée courante — irréversible."""
-    from flask_jwt_extended import get_jwt_identity
     from backend.models import User
-
-    user_id = get_jwt_identity()
-    # Récupérer le nom d'utilisateur qui ferme
-    closing_user = User.query.get(user_id)
+    closing_user = User.query.get(get_jwt_identity())
     closed_by_username = closing_user.username if closing_user else 'inconnu'
     today = date.today()
 
@@ -87,7 +84,6 @@ def close_day():
     departures = Reservation.query.filter(Reservation.checkout == today).count()
     low_stock = StockItem.query.filter(StockItem.qty <= StockItem.threshold).count()
 
-    # Caisse du jour : bons encaissés
     from backend.models import Bon
     bons = Bon.query.filter(Bon.day == today).all()
     encaisses = [b for b in bons if b.status == "encaisse"]
@@ -128,6 +124,9 @@ def delete_closed_day(day_str):
     d = ClosedDay.query.filter_by(day=day).first()
     if not d:
         return jsonify({"msg": "Aucune clôture ce jour"}), 404
+    resp = guard_date(day)
+    if resp:
+        return resp
     db.session.delete(d)
     db.session.commit()
     return jsonify({"msg": f"Clôture du {day_str} supprimée"})

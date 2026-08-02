@@ -97,3 +97,17 @@ class Setting(db.Model):
     __tablename__ = "settings"
     key = db.Column(db.String(50), primary_key=True)
     value = db.Column(db.String(200), nullable=False)
+
+class Archive(db.Model):
+    """Archive mensuelle : figure (frozen) les données d'un mois pour la traçabilité."""
+    __tablename__ = "archives"
+    id = db.Column(db.String(12), primary_key=True, default=gen_id)
+    month = db.Column(db.String(7), unique=True, nullable=False, index=True)  # 'YYYY-MM'
+    status = db.Column(db.String(10), default="frozen")  # frozen | active (ré-ouvert)
+    version = db.Column(db.Integer, default=1)
+    snapshot = db.Column(db.Text, default="{}")  # JSON figé des données du mois
+    created_by = db.Column(db.String(50), default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    opened_at = db.Column(db.DateTime, nullable=True)
+    opened_by = db.Column(db.String(50), default="")
+    opened_reason = db.Column(db.String(200), default="")
