@@ -41,7 +41,7 @@ class StockItem(db.Model):
     id = db.Column(db.String(12), primary_key=True, default=gen_id)
     name = db.Column(db.String(100), nullable=False)
     qty = db.Column(db.Float, nullable=False, default=0)
-    unit = db.Column(db.String(20), nullable=False)
+    unit = db.Column(db.String(100), nullable=False)
     threshold = db.Column(db.Float, nullable=False, default=0)
     category = db.Column(db.String(20), nullable=False)  # boisson, nourriture
     price = db.Column(db.Integer, default=0)          # prix de vente unitaire (caisse)
