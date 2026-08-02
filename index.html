@@ -236,7 +236,7 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef } = React;
 
 // ----- CONSTANTES -----
 const COLORS = {
@@ -383,7 +383,9 @@ async function api(path, opts = {}) {
   if (res.status === 401) { localStorage.removeItem(TOKEN_KEY); _apiToken = null; }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ msg: 'Erreur API' }));
-    throw new Error(err.msg || `HTTP ${res.status}`);
+    const e = new Error(err.msg || `HTTP ${res.status}`);
+    e.status = res.status;
+    throw e;
   }
   return res.json();
 }
@@ -2314,6 +2316,46 @@ function HotelManager() {
     return () => { mounted = false; };
   }, []);
 
+  // File de synchronisation : les appels API échoués (5xx / réseau) sont rejoués
+  // automatiquement au lieu d'être avalés silencieusement -> plus de perte de données.
+  const pendingSyncRef = useRef([]);
+
+  const syncApi = useCallback((url, options, label) => {
+    api(url, options).catch((err) => {
+      const status = err && err.status;
+      if (status && status >= 400 && status < 500) {
+        // Erreur métier définitive (409, 404...) : inutile de rejouer, on alerte.
+        showToast(`Sync impossible (${label}) : ${err.message}`, 'error');
+        return;
+      }
+      if (!pendingSyncRef.current.find(o => o.url === url && JSON.stringify(o.options) === JSON.stringify(options))) {
+        pendingSyncRef.current.push({ url, options, label });
+        showToast(`Synchronisation en attente : ${label}`, 'error');
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const pending = pendingSyncRef.current;
+      if (!pending.length) return;
+      const op = pending[0];
+      const delay = 15000 * Math.pow(2, Math.min(op.retryCount || 0, 4));
+      if (Date.now() - (op.lastTry || 0) < delay) return;
+      op.lastTry = Date.now();
+      op.retryCount = (op.retryCount || 0) + 1;
+      api(op.url, op.options)
+        .then(() => {
+          pending.shift();
+          showToast(`Synchronisation réussie : ${op.label}`, 'ok');
+        })
+        .catch((err) => {
+          if (err && err.status && err.status >= 400 && err.status < 500) pending.shift();
+        });
+    }, 15000);
+    return () => clearInterval(t);
+  }, []);
+
   const syncToApi = useCallback(async (next) => {
     if (!apiMode) return;
     const prev = data;
@@ -2327,9 +2369,9 @@ function HotelManager() {
         const removed = prev.rooms.filter(r => !next.rooms.find(p => p.id === r.id));
         const updated = next.rooms.filter(r => prev.rooms.find(p => p.id === r.id && JSON.stringify(p) !== JSON.stringify(r)));
 
-        for (const r of removed) api(`/rooms/${r.id}`, { method: 'DELETE' }).catch(() => {});
-        for (const r of added) api('/rooms', { method: 'POST', body: JSON.stringify(r) }).catch(() => {});
-        for (const r of updated) api(`/rooms/${r.id}`, { method: 'PUT', body: JSON.stringify(r) }).catch(() => {});
+        for (const r of removed) syncApi(`/rooms/${r.id}`, { method: 'DELETE' }, `suppression chambre ${r.name || r.number}`);
+        for (const r of added) syncApi('/rooms', { method: 'POST', body: JSON.stringify(r) }, `ajout chambre ${r.name || r.number}`);
+        for (const r of updated) syncApi(`/rooms/${r.id}`, { method: 'PUT', body: JSON.stringify(r) }, `modification chambre ${r.name || r.number}`);
       }
 
       // Réservations
