@@ -113,6 +113,25 @@ def close_day():
     db.session.commit()
     return jsonify({"msg": "Journée clôturée", "day": today.isoformat()}), 201
 
+@data_bp.route("/api/closed-days/<day_str>", methods=["DELETE"])
+@jwt_required()
+def delete_closed_day(day_str):
+    """Supprime une clôture (manager seulement) — pour corriger une erreur de saisie."""
+    from backend.models import User
+    user = User.query.get(get_jwt_identity())
+    if not user or user.role != "manager":
+        return jsonify({"msg": "Accès refusé : manager requis"}), 403
+    try:
+        day = datetime.strptime(day_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"msg": "Date invalide (format YYYY-MM-DD)"}), 400
+    d = ClosedDay.query.filter_by(day=day).first()
+    if not d:
+        return jsonify({"msg": "Aucune clôture ce jour"}), 404
+    db.session.delete(d)
+    db.session.commit()
+    return jsonify({"msg": f"Clôture du {day_str} supprimée"})
+
 # ——— ALERTES STOCK ———
 @data_bp.route("/api/stock/alerts", methods=["GET"])
 @jwt_required()
