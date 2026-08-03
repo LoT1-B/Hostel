@@ -2,7 +2,7 @@
 """API des archives mensuelles : archiver, rouvrir, re-archiver, consulter + rapport imprimable."""
 import json
 import html as html_mod
-from datetime import date
+from datetime import datetime, date
 
 from flask import Blueprint, request, jsonify, Response
 from flask_jwt_extended import jwt_required
@@ -167,6 +167,7 @@ def archive_pdf(month):
             body += "<tr>" + "".join(f"<td>{_esc(r.get(k, ''))}</td>" for k in cols) + "</tr>"
         return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
 
+    _dl = datetime.now().strftime('%d/%m/%Y à %H:%M')
     html = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <title>Villa Blanca - Archive {_esc(month)}</title>
 <style>
@@ -181,7 +182,7 @@ def archive_pdf(month):
 </style></head><body>
 <button class="noprint" onclick="window.print()">🫙 Imprimer / Enregistrer en PDF</button>
 <h1>Villa Blanca — Archive mensuelle</h1>
-<div class="sub">Mois : <b>{_esc(month)}</b> ({_esc(snap.get('period',''))}) — Version v{a.version} • archivé le {_esc(a.created_at.isoformat() if a.created_at else '')} par {_esc(a.created_by)}</div>
+<div class="sub">Mois : <b>{_esc(month)}</b> ({_esc(snap.get('period',''))}) — Version v{a.version} • archivé le {_esc(a.created_at.isoformat() if a.created_at else '')} par {_esc(a.created_by)} • Téléchargé le {_dl}</div>
 
 <h2>Résumé</h2>
 <div class="box">Chambres (fin) : <b>{st.get('nb_chambres_a_la_fin', 0)}</b></div>
@@ -206,6 +207,6 @@ def archive_pdf(month):
 <h2>Stock à la fin du mois</h2>
 {rows(snap.get('stock_final', []), ['name','category','qty','unit','threshold'])}
 
-<footer>Document généré le {_esc(date.today().isoformat())} — Villa Blanca / Hostel</footer>
+<footer>Villa Blanca / Hostel</footer>
 </body></html>"""
     return Response(html, mimetype="text/html")
