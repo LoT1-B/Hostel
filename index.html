@@ -1031,34 +1031,6 @@ function LoginScreen({ users, onLogin, storageError, hotelName, onApiLogin, back
           {loggingIn && <div style={{ fontSize: '12px', color: COLORS.slate, textAlign: 'center' }}>Connexion à l'API…</div>}
         </form>
 
-        <div className="login-accounts" style={{ 
-          marginTop: '28px', 
-          padding: '16px 18px', 
-          borderRadius: '16px', 
-          background: 'rgba(255,255,255,0.25)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255,255,255,0.2)',
-          fontSize: '12px', 
-          lineHeight: 1.8, 
-          color: COLORS.slate,
-          transition: 'all 0.3s ease'
-        }}>
-          <div style={{ fontWeight: 600, color: COLORS.ink, marginBottom: '6px', fontSize: '12px' }}>
-            <I.Users size={14} style={{ marginRight: '6px', opacity: 0.6 }} />
-            Comptes de démonstration
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="tag" style={{ background: COLORS.ink, color: 'white', fontSize: '10px', padding: '2px 10px' }}>manager</span>
-              <span style={{ opacity: 0.7 }}>manager / manager123</span>
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="tag" style={{ background: COLORS.ink, color: 'white', fontSize: '10px', padding: '2px 10px' }}>reception</span>
-              <span style={{ opacity: 0.7 }}>reception / reception123</span>
-            </span>
-          </div>
-        </div>
-
         {storageError && (
           <div style={{ 
             marginTop: '14px', 
